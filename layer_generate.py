@@ -231,7 +231,6 @@ def create_layer(i_layer, layer_node, dory_node, network_dir, input=None, weight
         'value': b.numpy(),
         'layout': ''
     }
-
     if not is_fc:
         y = F.conv2d(input=x, weight=w, bias=b, stride=layer_node.strides, padding=layer_node.pads[0], groups=layer_node.group)
     else:
@@ -299,15 +298,17 @@ def create_graph(params, network_dir):
     params_in = deepcopy(params)
     params_in['layer_type'] = 'Convolution'
     params_in['operation_type'] = 'Conv'
-    params_in['input_bits'] = 2
-    params_in['kernel_shape'] = [1,1]
-    params_in['weight_bits'] = 2
-    params_in['padding'] = 4*[0]
+    params_in['input_bits'] = 8
+    params_in['kernel_shape'] = [3,3]
+    params_in['weight_bits'] = 8
+    params_in['padding'] = [0, 0, 0, 0]
     params_in['output_bits'] = params['input_bits']
     params_in['output_type'] = params['input_type']
     params_in['stride'] = [1,1]
-    params_in['input_channels'] = 4
+    params_in['input_channels'] = 32
     params_in['output_channels'] = params['input_channels']
+    params_in['group'] = 1
+
 
 
     in_layer_node = create_layer_node(params_in, 0)
