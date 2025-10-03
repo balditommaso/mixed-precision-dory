@@ -1,0 +1,400 @@
+{
+    "input_quant": {
+        "type": "Identity",
+        "bit_width": 8,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "output_channels": 3
+    },
+    "features.init_block.conv": {
+        "type": "Conv2d",
+        "bit_width": 8,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.init_block.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 32
+    },
+    "features.stage1.unit1.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage1.unit1.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 32
+    },
+    "features.stage1.unit1.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage1.unit1.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": true,
+        "out_channels": 64
+    },
+    "features.stage2.unit1.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage2.unit1.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 64
+    },
+    "features.stage2.unit1.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage2.unit1.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": true,
+        "out_channels": 128
+    },
+    "features.stage2.unit2.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage2.unit2.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 128
+    },
+    "features.stage2.unit2.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage2.unit2.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": true,
+        "out_channels": 128
+    },
+    "features.stage3.unit1.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage3.unit1.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 128
+    },
+    "features.stage3.unit1.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage3.unit1.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": true,
+        "out_channels": 256
+    },
+    "features.stage3.unit2.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage3.unit2.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 256
+    },
+    "features.stage3.unit2.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage3.unit2.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": true,
+        "out_channels": 256
+    },
+    "features.stage4.unit1.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage4.unit1.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 256
+    },
+    "features.stage4.unit1.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage4.unit1.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": true,
+        "out_channels": 512
+    },
+    "features.stage4.unit2.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage4.unit2.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 512
+    },
+    "features.stage4.unit2.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage4.unit2.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": true,
+        "out_channels": 512
+    },
+    "features.stage4.unit3.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage4.unit3.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 512
+    },
+    "features.stage4.unit3.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage4.unit3.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": true,
+        "out_channels": 512
+    },
+    "features.stage4.unit4.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage4.unit4.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 512
+    },
+    "features.stage4.unit4.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage4.unit4.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": true,
+        "out_channels": 512
+    },
+    "features.stage4.unit5.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage4.unit5.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 512
+    },
+    "features.stage4.unit5.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage4.unit5.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": true,
+        "out_channels": 512
+    },
+    "features.stage4.unit6.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage4.unit6.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 512
+    },
+    "features.stage4.unit6.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage4.unit6.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": true,
+        "out_channels": 512
+    },
+    "features.stage5.unit1.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage5.unit1.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 512
+    },
+    "features.stage5.unit1.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage5.unit1.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 1024
+    },
+    "features.stage5.unit2.dw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage5.unit2.dw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 1024
+    },
+    "features.stage5.unit2.pw_conv.conv": {
+        "type": "Conv2d",
+        "bit_width": 2,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "features.stage5.unit2.pw_conv.activation": {
+        "type": "ReLU",
+        "bit_width": 8,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 1024
+    },
+    "final_pool": {
+        "type": "AdaptiveAvgPool2d",
+        "bit_width": 8,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "output": {
+        "type": "Linear",
+        "bit_width": 8,
+        "strategy": "default",
+        "implementation": "default"
+    }
+}

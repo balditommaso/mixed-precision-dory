@@ -1,15 +1,39 @@
 FROM    ubuntu:focal
 SHELL   ["/bin/bash", "-c"]
-RUN     apt-get update && \
-        apt-get install -y software-properties-common && \
-		apt-get -y install sudo && \
-        apt-add-repository universe && \
-        apt-get update && \
-        apt-get install -y python3.8 && \
-        update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1 && \
-        apt-get install -y python3-pip && \
-        apt-get install -y python3.8-venv && \
-        DEBIAN_FRONTEND="noninteractive" apt-get install -y build-essential git libftdi-dev libftdi1 doxygen python3-pip libsdl2-dev curl cmake libusb-1.0-0-dev gtkwave libsndfile1-dev rsync autoconf automake texinfo libtool pkg-config libsdl2-ttf-dev wget unzip sed
+# Set non-interactive mode globally
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y software-properties-common sudo && \
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y \
+        python3.9 \
+        python3.9-venv \
+        python3-pip \
+        build-essential \
+        git \
+        libftdi-dev \
+        libftdi1 \
+        doxygen \
+        libsdl2-dev \
+        curl \
+        cmake \
+        libusb-1.0-0-dev \
+        gtkwave \
+        libsndfile1-dev \
+        rsync \
+        autoconf \
+        automake \
+        texinfo \
+        libtool \
+        pkg-config \
+        libsdl2-ttf-dev \
+        wget \
+        unzip \
+        sed && \
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
+
 
 #RUN     stat /etc/udev/
 #RUN     cp /usr/share/gap8-openocd/openocd/contrib/60-openocd.rules /etc/udev/rules.d
@@ -59,7 +83,7 @@ WORKDIR /gap_riscv_toolchain_ubuntu_18/gap_sdk/
 RUN     source /dory_env/bin/activate && \
         python3 -m pip install python-dev-tools --upgrade && \
         python3 -m pip install numpy && \
-        python3 -m pip install onnx && \
+        python3 -m pip install onnx onnxscript onnxoptimizer && \
         python3 -m pip install future-fstrings && \
         python3 -m pip install pandas && \
         python3 -m pip install ortools && \
@@ -70,7 +94,8 @@ RUN     source /dory_env/bin/activate && \
         python3 -m pip install prettytable && \
         cd /gap_riscv_toolchain_ubuntu_18/gap_sdk/ && \
         python3 -m pip uninstall -y torch torchvision && \
-        python3 -m pip install torch==1.6.0 torchvision==0.7.0
+        python3 -m pip install torch torchvision && \
+        python3 -m pip install brevitas pytorch-lightning tensorboard
 
 # -------------------------
 # Add vscode user for VS Code

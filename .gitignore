@@ -11,3 +11,7 @@ application
 dory.egg-info
 dory.egg-info/
 workspaces*
+.vscode
+data
+lightning_logs
+pulp_nn_network_test.txt
