@@ -14,8 +14,8 @@ setup(name='dory',
 	    install_requires=[
 	        "onnx",
 	        "numpy",
-              "ortools",
-              "mako"
+            "ortools",
+            "mako"
 	    ],
       package_data={"": ['Makefile*'], "": ['*.[json,c,h]']},
       include_package_data=True,

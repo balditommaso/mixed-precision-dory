@@ -10,3 +10,4 @@ application
 .idea
 dory.egg-info
 dory.egg-info/
+workspaces*

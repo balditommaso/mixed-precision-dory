@@ -1,4 +1,4 @@
-FROM    ubuntu:bionic
+FROM    ubuntu:focal
 SHELL   ["/bin/bash", "-c"]
 RUN     apt-get update && \
         apt-get install -y software-properties-common && \
@@ -7,7 +7,7 @@ RUN     apt-get update && \
         apt-get update && \
         apt-get install -y python3.8 && \
         update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1 && \
-        apt-get install -y python-pip && \
+        apt-get install -y python3-pip && \
         apt-get install -y python3.8-venv && \
         DEBIAN_FRONTEND="noninteractive" apt-get install -y build-essential git libftdi-dev libftdi1 doxygen python3-pip libsdl2-dev curl cmake libusb-1.0-0-dev gtkwave libsndfile1-dev rsync autoconf automake texinfo libtool pkg-config libsdl2-ttf-dev wget unzip sed
 
@@ -71,3 +71,27 @@ RUN     source /dory_env/bin/activate && \
         cd /gap_riscv_toolchain_ubuntu_18/gap_sdk/ && \
         python3 -m pip uninstall -y torch torchvision && \
         python3 -m pip install torch==1.6.0 torchvision==0.7.0
+
+# -------------------------
+# Add vscode user for VS Code
+# -------------------------
+ARG USERNAME=dory
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+# Create the user
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    #
+    # [Optional] Add sudo support. Omit if you don't need to install software after connecting.
+    && apt-get update \
+    && apt-get install -y sudo \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+# ********************************************************
+# * Anything else you want to do like clean up goes here *
+# ********************************************************
+
+# [Optional] Set the default user. Omit if you want to keep the default as root.
+USER $USERNAME

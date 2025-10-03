@@ -1,0 +1,31 @@
+{
+  "name": "dory_dev",
+  "image": "dory-docker:latest",
+
+  "runArgs": [
+    "--gpus", "all",
+    "--cpus=10"
+  ],
+
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/mixed-precision-dory,type=bind",
+  "workspaceFolder": "/workspaces/",
+
+  "updateRemoteUserUID": false,
+  "remoteUser": "dory",
+
+  // Make sure bash is the default shell for VS Code terminals
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "/bin/bash",
+                   "args": ["--login", "-i", "-c", "/workspaces/mixed-precision-dory/docker_util/start_terminal.sh"]
+          }
+        },
+        "terminal.integrated.defaultProfile.linux": "bash" 
+      }
+    }
+  }
+  
+}
