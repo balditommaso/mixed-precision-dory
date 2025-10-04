@@ -4,7 +4,7 @@
 
   "runArgs": [
     "--gpus", "all",
-    "--cpus=6"
+    "--cpus=8"
   ],
 
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/mixed-precision-dory,type=bind",
