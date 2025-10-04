@@ -9,7 +9,7 @@
 	url = ../../ABurrello/dory-hal.git
 [submodule "dory/Hardware_targets/GAP8/Backend_Kernels/pulp-nn-mixed"]
 	path = dory/Hardware_targets/PULP/Backend_Kernels/pulp-nn-mixed
-	url = https://github.com/pulp-platform/pulp-nn-mixed.git
+	url = https://github.com/balditommaso/pulp-nn-mixed.git
 	branch = main
 [submodule "dory/Hardware_targets/PULP/Backend_Kernels/pulp-nnx"]
 	path = dory/Hardware_targets/PULP/Backend_Kernels/pulp-nnx
