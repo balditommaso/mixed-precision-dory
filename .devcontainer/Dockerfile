@@ -86,7 +86,7 @@ RUN     source /dory_env/bin/activate && \
         python3 -m pip install onnx onnxscript onnxoptimizer && \
         python3 -m pip install future-fstrings && \
         python3 -m pip install pandas && \
-        python3 -m pip install ortools && \
+        python3 -m pip install qonnx ortools && \
         python3 -m pip install mako && \
         python3 -m pip install pytest && \
         python3 -m pip install Pygments && \

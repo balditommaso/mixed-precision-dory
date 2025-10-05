@@ -40,8 +40,16 @@ def dory_to_c(graph, target, conf, confdir, verbose_level, perf_layer, optional,
     dory_hw_to_c(graph, conf, confdir, verbose_level, perf_layer, optional, appdir, n_inputs).full_graph_parsing()
 
 
-def network_generate(frontend, target, conf_file, verbose_level='Check_all+Perf_final', perf_layer='No', optional='auto',
-                     appdir='./application', prefix=""):
+def network_generate(
+    frontend: str, 
+    target: str, 
+    conf_file: str, 
+    verbose_level: str ='Check_all+Perf_final', 
+    perf_layer: str ='No', 
+    optional: str ='auto',
+    appdir: str ='./application', 
+    prefix: str =""
+) -> None:
     print(f"Using {frontend} as frontend. Targeting {target} platform. ")
 
     if len(prefix) > 0 and prefix[-1] != "_":
@@ -71,7 +79,7 @@ def network_generate(frontend, target, conf_file, verbose_level='Check_all+Perf_
 
 
 if __name__ == '__main__':
-    Frontends = ["NEMO", "Quantlab"]
+    Frontends = ["NEMO", "Quantlab", "QONNX"]
     Hardware_targets = ["PULP.GAP8", "PULP.GAP8_L2", "PULP.PULP_gvsoc", "PULP.GAP9", "PULP.GAP9_NE16", "Occamy", "Diana.Diana_TVM", "Diana.Diana_SoC"]
     verbose_levels = ["None", "Perf_final", "Check_all+Perf_final", "Last+Perf_final"]
     optional_choices = ["auto", "8bit", "mixed-hw", "mixed-sw"]

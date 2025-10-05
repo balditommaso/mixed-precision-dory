@@ -40,7 +40,8 @@
             "args": ["--login", "-i"]
           }
         },
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "python.defaultInterpreterPath": "/dory_env/bin/python"
       }
     }
   }
