@@ -12,6 +12,8 @@ from dory.Frontend_frameworks.QONNX.transformations.dory_config_generator import
 from dory.Frontend_frameworks.QONNX.transformations.fold_static_quant import FoldStaticQuant
 from dory.Frontend_frameworks.QONNX.transformations.record_out_scale import RecordOutScale
 from dory.Frontend_frameworks.QONNX.transformations.dory_relu_quant_parser import DoryActQuantParser
+from dory.Frontend_frameworks.QONNX.transformations.dory_avg_pool_parser import DoryAvgPoolQuantParser
+
 
 # DORY modules
 from dory.Frontend_frameworks.Quantlab.Parser import onnx_manager as Quantlab_onnx_manager
@@ -47,6 +49,7 @@ class onnx_manager(Quantlab_onnx_manager):
         model.save(os.path.join(self.log_dir, "C_QONNX_remove_input_quant.onnx"))
         # adapt to dory activation quantization
         model = model.transform(DoryActQuantParser(delta=2**19, verbose=verbose))
+        model = model.transform(DoryAvgPoolQuantParser(delta=2*19, verbose=verbose))
         model.save(os.path.join(self.log_dir, "D_QONNX_parse_quant_act.onnx"))
 
         # call the Quantlab manager

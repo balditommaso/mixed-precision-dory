@@ -18,8 +18,8 @@ class RecordOutScale(BaseTrasformation):
     
     def apply(self, model: ModelWrapper) -> Tuple[ModelWrapper, bool]:
         graph = model.graph
-        iter_graph = deepcopy(graph)
-        for node in iter_graph.node:
+        # iter_graph = deepcopy(graph)
+        for node in graph.node:
             # check operation which could have static parameters
             if node.op_type == "Quant" or len(node.input) < 2:
                 continue
@@ -36,7 +36,6 @@ class RecordOutScale(BaseTrasformation):
             elif len(node.input) == 3:
                 # extract the out scale from the bias
                 b_quant = model.find_producer(node.input[2])
-                
                 out_scale = model.get_initializer(b_quant.input[1])
             else:
                 self.warning_message(f"{node.name} has more than 3 inputs, not handled yet.")

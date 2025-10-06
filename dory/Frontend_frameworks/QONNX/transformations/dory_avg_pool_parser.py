@@ -9,10 +9,9 @@ from typing import *
 
 
 
-class DoryActQuantParser(BaseTrasformation):
+class DoryAvgPoolQuantParser(BaseTrasformation):
     """
-    Look for ReLU node followed by Quant nodes and convert it to
-    Dory expected format.
+    Adapter from QONNX average pool via truncate to DORY average pool harmonization.
     """
     
     def __init__(self, delta: int, verbose: bool = False):
