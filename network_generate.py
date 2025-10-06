@@ -44,11 +44,11 @@ def network_generate(
     frontend: str, 
     target: str, 
     conf_file: str, 
-    verbose_level: str ='Check_all+Perf_final', 
-    perf_layer: str ='No', 
-    optional: str ='auto',
-    appdir: str ='./application', 
-    prefix: str =""
+    verbose_level: str = 'Check_all+Perf_final', 
+    perf_layer: str = 'No', 
+    optional: str = 'auto',
+    appdir: str = './application', 
+    prefix: str = ""
 ) -> None:
     print(f"Using {frontend} as frontend. Targeting {target} platform. ")
 
@@ -73,7 +73,7 @@ def network_generate(
     # Including and running the transformation from Onnx to a DORY compatible graph
     onnx_manager = import_module(f'dory.Frontend_frameworks.{frontend}.Parser')
     onnx_to_dory = onnx_manager.onnx_manager
-    graph = onnx_to_dory(onnx_file, conf, prefix).full_graph_parsing()
+    graph = onnx_to_dory(onnx_file, conf, prefix, verbose=verbose_level != "None").full_graph_parsing()
 
     dory_to_c(graph, target, conf, confdir, verbose_level, perf_layer, optional, appdir, n_inputs)
 
