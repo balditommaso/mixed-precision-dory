@@ -115,7 +115,6 @@ class DoryAvgPoolQuantParser(BaseTrasformation):
                 [out_div_tensor.name],
                 [out_clip_tensor.name]
             )
-            graph.node.append(clip_node)
             
             clip_min = min_int(signed, is_narrow, out_bit_width)
             clip_max = max_int(signed, is_narrow, out_bit_width)
@@ -130,7 +129,7 @@ class DoryAvgPoolQuantParser(BaseTrasformation):
                 "max", clip_max
             )
             clip_node.attribute.extend([bit_width_attr, clip_min_attr, clip_max_attr])
-            
+            graph.node.append(clip_node)
             # reconnecte the chain
             next_node = model.find_consumer(node.output[0])
             next_node.input[0] = out_clip_tensor.name

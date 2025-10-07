@@ -14,6 +14,7 @@ from dory.Frontend_frameworks.QONNX.transformations.record_out_scale import Reco
 from dory.Frontend_frameworks.QONNX.transformations.dory_relu_quant_parser import DoryActQuantParser
 from dory.Frontend_frameworks.QONNX.transformations.dory_avg_pool_parser import DoryAvgPoolQuantParser
 from dory.Frontend_frameworks.QONNX.transformations.dory_flatten_parser import DoryFlattenParser
+from dory.Frontend_frameworks.QONNX.transformations.rename_tensors import RenameTensorsSequentially
 
 
 # DORY modules
@@ -38,8 +39,7 @@ class onnx_manager(Quantlab_onnx_manager):
         # load the model
         model = ModelWrapper(on.load(onnx))
         # apply transformations
-        model = model.transform(ChangeBatchSize(1))
-        model = cleanup_model(model)
+        model = cleanup_model(model, override_inpsize=1)
         model.save(os.path.join(self.log_dir, "A_QONNX_cleanup.onnx"))
         # fold static quantization
         model = model.transform(RecordOutScale(verbose=verbose))
@@ -52,8 +52,9 @@ class onnx_manager(Quantlab_onnx_manager):
         transformed_onnx_path = os.path.join(self.log_dir, "D_QONNX_parse_quant_act.onnx")
         model = model.transform(DoryActQuantParser(delta=2**19, verbose=verbose))
         model = model.transform(DoryAvgPoolQuantParser(delta=2**19, verbose=verbose))
-        model = cleanup_model(model)
+        model = model.transform(InferShapes())
         model = model.transform(DoryFlattenParser(verbose=verbose))
+        model = model.transform(RenameTensorsSequentially(verbose=verbose))
         model.save(transformed_onnx_path)
 
         # TODO: check the correctness of the transformations

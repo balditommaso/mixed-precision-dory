@@ -1,6 +1,6 @@
 # ignore all logs
 *.log
-logs
+*logs
 __pycache__
 application/BUILD
 application

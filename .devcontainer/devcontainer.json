@@ -7,6 +7,11 @@
     "--cpus=8"
   ],
 
+  "mounts": [
+    "source=${localEnv:HOME}/.zshrc,target=/home/dory/.zshrc,type=bind"
+  ],
+
+
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/mixed-precision-dory,type=bind",
   "workspaceFolder": "/workspaces/mixed-precision-dory/",
 

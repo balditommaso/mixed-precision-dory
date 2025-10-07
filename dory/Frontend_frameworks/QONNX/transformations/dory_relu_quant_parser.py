@@ -46,10 +46,11 @@ class DoryActQuantParser(BaseTrasformation):
             C_out = out_shape[1] if len(out_shape) > 1 else out_shape[0]
             
             M = round_fx(out_scale / quant_scale * self.delta)
-            if np.isscalar(M) or np.size(M) == 1:
-                M = np.full((C_out, 1, 1), float(M), dtype=np.float32)
-            else:
-                M = np.reshape(M, (C_out, 1, 1)).astype(np.float32)
+            # NOTE: channel-wise not supported in Dory
+            # if np.isscalar(M) or np.size(M) == 1:
+            #     M = np.full((C_out, 1, 1), float(M), dtype=np.float32)
+            # else:
+            #     M = np.reshape(M, (C_out, 1, 1)).astype(np.float32)
             
             M = numpy_helper.from_array(M, model.make_new_valueinfo_name())
             graph.initializer.append(M)
@@ -127,7 +128,6 @@ class DoryActQuantParser(BaseTrasformation):
                 [out_div_tensor.name],
                 [out_clip_tensor.name]
             )
-            graph.node.append(clip_node)
             
             out_bit_width = int(model.get_initializer(quant_node.input[3]))
             is_narrow = bool(get_by_name(quant_node.attribute, "narrow").i)
@@ -146,7 +146,7 @@ class DoryActQuantParser(BaseTrasformation):
                 "max", clip_max
             )
             clip_node.attribute.extend([bit_width_attr, clip_min_attr, clip_max_attr])
-            
+            graph.node.append(clip_node)
             # reconnecte the chain
             next_node = model.find_consumer(quant_node.output[0])
             next_node.input[0] = out_clip_tensor.name

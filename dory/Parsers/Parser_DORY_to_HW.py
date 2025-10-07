@@ -215,7 +215,8 @@ class Parser_DORY_to_HW:
         self.Printer_Frontend.print_json_from_DORY_graph("06_DORY_HW_tiled_graph", self.DORY_Graph)
         self.Printer_Frontend.print_onnx_from_DORY_graph("06_DORY_HW_tiled_graph", self.DORY_Graph)
         self.renaming_weights()
-        self.formatting_constant_parameters_tensors_and_activations()
+        # HACK TOMMASO: QONNX do not generate it
+        # self.formatting_constant_parameters_tensors_and_activations() 
         self.Printer_Frontend.print_json_from_DORY_graph("07_DORY_HW_with_checksums", self.DORY_Graph)
         self.Printer_Frontend.print_onnx_from_DORY_graph("07_DORY_HW_with_checksums", self.DORY_Graph)
         self.check_graph()

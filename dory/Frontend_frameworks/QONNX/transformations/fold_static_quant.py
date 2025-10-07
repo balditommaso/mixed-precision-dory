@@ -60,11 +60,8 @@ def int_quant(
     # rounding
     rounding_fx = resolve_rounding_mode(rounding_mode)
     y_int = rounding_fx(y_int)
-    # re-scaling
-    out_tensor = y_int - zeropt
-    out_tensor = out_tensor * scale
 
-    return out_tensor
+    return y_int
 
 
 def resolve_rounding_mode(mode_string: str) -> Callable:
@@ -145,8 +142,12 @@ class FoldStaticQuant(BaseTrasformation):
                 
             q_value = int_quant(fp_value, scale, zeropt, bit_width, signed, is_narrow, rounding_mode)
             
+            # needed by the backend to separate bias from weights
+            quant_tensor_name = model.make_new_valueinfo_name()
+            if is_bias:
+                quant_tensor_name += "_bias"
             quant_tensor = helper.make_tensor_value_info(
-                model.make_new_valueinfo_name(),
+                quant_tensor_name,
                 model.get_tensor_valueinfo(node.input[0]).type.tensor_type.elem_type,
                 param_shape
             )
@@ -164,7 +165,14 @@ class FoldStaticQuant(BaseTrasformation):
                 bit_width
             )
             target_node.attribute.append(attr)
-                        
+            
+            # remove old initzializers
+            for name in node.input[:4]:  # fp_value, scale, zeropt, bit_width
+                for init in list(graph.initializer):
+                    if init.name == name:
+                        graph.initializer.remove(init)
+                        break
+            
             # remove quant node
             graph.node.remove(node)
         

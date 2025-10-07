@@ -235,9 +235,9 @@ void ${prefix}network_run_cluster(void *args) {
     L2_weights = Weights_name[i];
 % endif
 
-% if 'Check_all' in verbose_level:
+% if 'Check_all' in verbose_level and hasattr(DORY_HW_graph[0], 'check_sum_in') and hasattr(DORY_HW_graph[0], 'check_sum_w'):
 #ifdef VERBOSE
-        % if l3_supported:
+% if l3_supported:
     if (L3_input_layers[i] == 1)
       printf("Input in L3\n");
     else
@@ -306,15 +306,15 @@ void ${prefix}network_run_cluster(void *args) {
 
 #ifdef VERBOSE
     printf("Layer %s %d ended: \n", Layers_name[i], i);
-% if 'Check_all' in verbose_level:
-    % if l3_supported:
+% if 'Check_all' in verbose_level and hasattr(DORY_HW_graph[0], 'check_sum_in') and hasattr(DORY_HW_graph[0], 'check_sum_w'):
+% if l3_supported:
     if (L3_output_layers[i]==1) {
       printf("Output in L3. Expected checksum: %d\n", activations_out_checksum[i][exec]);
     } else {
 % endif
       checksum(i + 1 < ${len(DORY_HW_graph)} ? "L2 output" : "final output",
                L2_output, activations_out_size[i], activations_out_checksum[i][exec]);
-      % if l3_supported:
+% if l3_supported:
     }
 % endif
     printf("\n");
@@ -323,6 +323,7 @@ void ${prefix}network_run_cluster(void *args) {
         checksum("final layer", L2_output, activations_out_size[i], activations_out_checksum[i][exec]);
 % endif
 #endif
+
 
     // Free memory
     % if l3_supported:
