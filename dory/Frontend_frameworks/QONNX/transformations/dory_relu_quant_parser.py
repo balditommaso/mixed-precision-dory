@@ -51,7 +51,7 @@ class DoryActQuantParser(BaseTrasformation):
             else:
                 M = np.reshape(M, (C_out, 1, 1)).astype(np.float32)
             
-            M = numpy_helper.from_array(M, "M")
+            M = numpy_helper.from_array(M, model.make_new_valueinfo_name())
             graph.initializer.append(M)
             
             out_mul_tensor = helper.make_tensor_value_info(
@@ -72,13 +72,13 @@ class DoryActQuantParser(BaseTrasformation):
             # add node only for asymmetric quantization
             zeropt = model.get_initializer(quant_node.input[2])
             if zeropt is not None and not np.all(zeropt == 0.):
-                Z = round_fx(zeropt * self.delta)
+                Z = round_fx(zeropt * self.delta * out_scale)
                 if np.isscalar(Z) or np.size(Z) == 1:
                     Z = np.full((C_out, 1, 1), float(Z), dtype=np.float32)
                 else:
                     Z = np.reshape(Z, (C_out, 1, 1)).astype(np.float32)
                     
-                Z - numpy_helper.from_array(Z, "Z")
+                Z = numpy_helper.from_array(Z, model.make_new_valueinfo_name())
                 graph.initializer.append(Z)
                 
                 out_add_tensor = helper.make_tensor_value_info(
@@ -98,7 +98,7 @@ class DoryActQuantParser(BaseTrasformation):
                 
             # div node to remove the scale
             D = np.array(self.delta, dtype=np.int32)
-            D = numpy_helper.from_array(D, "D")
+            D = numpy_helper.from_array(D, model.make_new_valueinfo_name())
             graph.initializer.append(D)
                         
             out_div_tensor = helper.make_tensor_value_info(
@@ -156,11 +156,5 @@ class DoryActQuantParser(BaseTrasformation):
             
             
         return (model, False)
-            
-            
-            
-            
-            
-            
             
             
