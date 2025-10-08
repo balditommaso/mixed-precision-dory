@@ -1,0 +1,52 @@
+{
+    "input_quant": {
+        "type": "Identity",
+        "bit_width": 8,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "output_channels": 3
+    },
+    "conv1": {
+        "type": "Conv2d",
+        "bit_width": 8,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false
+    },
+    "relu1": {
+        "type": "ReLU",
+        "bit_width": 8,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 16
+    },
+    "conv2": {
+        "type": "Conv2d",
+        "bit_width": 8,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false
+    },
+    "relu2": {
+        "type": "ReLU",
+        "bit_width": 8,
+        "strategy": "default",
+        "implementation": "default",
+        "per_channel": false,
+        "out_channels": 8
+    },
+    "avgpool": {
+        "type": "AvgPool2d",
+        "bit_width": 8,
+        "strategy": "default",
+        "implementation": "default"
+    },
+    "fc1": {
+        "type": "Linear",
+        "bit_width": 8,
+        "strategy": "default",
+        "implementation": "default"
+    }
+}

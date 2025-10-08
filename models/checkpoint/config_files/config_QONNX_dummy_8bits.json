@@ -1,0 +1,8 @@
+{
+	"BNRelu_bits": 64,
+	"onnx_file": "../dummy_cnn_8_bit.onnx",
+    "implementation_config": "../dummy_cnn_8_bit.json",
+	"code reserved space":120000,
+    "input_bits": 8,
+    "input_signed": false
+}

@@ -57,7 +57,7 @@ class DoryActQuantParser(BaseTrasformation):
             
             out_mul_tensor = helper.make_tensor_value_info(
                 model.make_new_valueinfo_name(),
-                TensorProto.INT32,
+                TensorProto.FLOAT,
                 model.get_tensor_shape(prev_node.output[0])
             )
             graph.value_info.append(out_mul_tensor)
@@ -84,7 +84,7 @@ class DoryActQuantParser(BaseTrasformation):
                 
                 out_add_tensor = helper.make_tensor_value_info(
                     model.make_new_valueinfo_name(),
-                    TensorProto.INT32,
+                    TensorProto.FLOAT,
                     model.get_tensor_shape(prev_node.output[0])
                 )
                 graph.value_info.append(out_add_tensor)
@@ -98,7 +98,7 @@ class DoryActQuantParser(BaseTrasformation):
                 div_input_name = out_add_tensor.name
                 
             # div node to remove the scale
-            D = np.array(self.delta, dtype=np.int32)
+            D = np.array(self.delta, dtype=np.float32)
             D = numpy_helper.from_array(D, model.make_new_valueinfo_name())
             graph.initializer.append(D)
                         
@@ -119,7 +119,7 @@ class DoryActQuantParser(BaseTrasformation):
             # clip to apply the relu activation
             out_clip_tensor = helper.make_tensor_value_info(
                 model.make_new_valueinfo_name(),
-                TensorProto.INT32,
+                TensorProto.FLOAT,
                 model.get_tensor_shape(prev_node.output[0])
             )
             

@@ -2,17 +2,19 @@ import os
 import torch
 import json
 import pytorch_lightning as pl
+import arch as ARCHS
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from argparse import ArgumentParser
-from datamodule import CIFAR10DataModule
-from mobilenet import mobilenet_v1
+from datamodule import DATALOADERS
 from training_module import VisionModel
 from quant_util import extract_modules
 
 def argument_parser():
     parser = ArgumentParser()
     parser.add_argument("--save_dir", default="./checkpoint", type=str, help="Path to the saving directory.")
+    parser.add_argument("--dataset", default="cifar-10", choices=["cifar-10", "MNIST"], type=str, help="Dataset for training.")
+    parser.add_argument("--model", default="dummy_cnn", choices=["dummy_cnn", "mobilenet_v1"], type=str, help="Model to be trained.")
     parser.add_argument("--file_name", default="mobilenetV1", type=str, help="Name of the files.")
     parser.add_argument("--lr", type=float, default=0.1, help="Learning rate.")
     parser.add_argument("--batch_size", type=int, default=512, help="batch size.")
@@ -28,17 +30,15 @@ def argument_parser():
 
 def main(args):
     # activate the GPU if available
-    device = torch.device("cpu")
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-        torch.set_float32_matmul_precision("high")
-        torch.cuda.empty_cache()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    torch.set_float32_matmul_precision("high")
+    torch.cuda.empty_cache()
     
     # get the data module
-    datamodule = CIFAR10DataModule("./data", args.batch_size, 0.0, args.num_workers, args.seed)
+    datamodule = DATALOADERS[args.dataset]("./data", args.batch_size, 0.0, args.num_workers, args.seed)
 
     # get the model
-    model = mobilenet_v1(10)
+    model = getattr(ARCHS, args.model)(10)
     
     # log the training
     tb_logger = pl_loggers.TensorBoardLogger(args.save_dir, name=f"{args.file_name}_logs")

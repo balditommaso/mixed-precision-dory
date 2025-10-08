@@ -1,6 +1,6 @@
 import numpy as np
 from copy import deepcopy
-from onnx import helper
+from onnx import helper, numpy_helper
 from qonnx.core.modelwrapper import ModelWrapper
 from dory.Frontend_frameworks.QONNX.transformations.base import BaseTrasformation
 from qonnx.util.basic import get_by_name
@@ -140,21 +140,17 @@ class FoldStaticQuant(BaseTrasformation):
             if bit_width not in [2, 4, 8, 16, 32]:
                 self.error_message(f"Not supported bit_width for {node.name} ({bit_width}).", ValueError)
                 
-            q_value = int_quant(fp_value, scale, zeropt, bit_width, signed, is_narrow, rounding_mode)
+            q_value = int_quant(fp_value, scale, zeropt, bit_width, signed, is_narrow, rounding_mode).astype(np.float32)
             
             # needed by the backend to separate bias from weights
             quant_tensor_name = model.make_new_valueinfo_name()
             if is_bias:
                 quant_tensor_name += "_bias"
-            quant_tensor = helper.make_tensor_value_info(
-                quant_tensor_name,
-                model.get_tensor_valueinfo(node.input[0]).type.tensor_type.elem_type,
-                param_shape
-            )
+                
+            quant_tensor = numpy_helper.from_array(q_value, quant_tensor_name)
             
             # add tensor to the graph
-            graph.value_info.append(quant_tensor)
-            model.set_initializer(quant_tensor.name, q_value)
+            graph.initializer.append(quant_tensor)
             
             idx = list(target_node.input).index(node.output[0])
             target_node.input[idx] = quant_tensor.name

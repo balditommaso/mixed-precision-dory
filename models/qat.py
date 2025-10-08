@@ -1,11 +1,11 @@
 import os
 import json
 import pytorch_lightning as pl
+import arch as ARCHS
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from argparse import ArgumentParser
-from datamodule import CIFAR10DataModule
-from mobilenet import mobilenet_v1
+from datamodule import DATALOADERS
 from training_module import VisionModel
 from quant_util import quantize_model
 from brevitas import config
@@ -19,6 +19,8 @@ config.IGNORE_MISSING_KEYS = True
 def argument_parser():
     parser = ArgumentParser()
     parser.add_argument("--save_dir", default="./checkpoint", type=str, help="Path to the saving directory.")
+    parser.add_argument("--dataset", default="cifar-10", choices=["cifar-10", "MNIST"], type=str, help="Dataset for training.")
+    parser.add_argument("--model", default="dummy_cnn", choices=["dummy_cnn", "mobilenet_v1"], type=str, help="Model to be trained.")
     parser.add_argument("--model_path", type=str, help="Path to the model checkpoint.")
     parser.add_argument("--config_path", type=str, help="Path to the quant config file.")
     parser.add_argument("--file_name", type=str, help="Name of the files.")
@@ -39,10 +41,10 @@ def main(args):
         quant_config = json.load(f)
         
     # get the data module
-    datamodule = CIFAR10DataModule("./data", args.batch_size, 0.0, args.num_workers, args.seed)
+    datamodule = DATALOADERS[args.dataset]("./data", args.batch_size, 0.0, args.num_workers, args.seed)
 
     # load the model from checkpoint
-    model = mobilenet_v1(10)
+    model = getattr(ARCHS, args.model)(10)
     pl_model = VisionModel.load_from_checkpoint(
         args.model_path, 
         map_location="cpu",

@@ -43,14 +43,14 @@ class DoryAvgPoolQuantParser(BaseTrasformation):
             rounding_mode = get_by_name(node.attribute, "rounding_mode").s.decode("utf-8")
             signed = bool(get_by_name(node.attribute, "signed").i)
             
-            M = np.round(out_scale / in_scale * self.delta)
+            M = np.round(out_scale / in_scale * self.delta).astype(np.float32)
             
             M = numpy_helper.from_array(M, model.make_new_valueinfo_name())
             graph.initializer.append(M)
             
             out_mul_tensor = helper.make_tensor_value_info(
                 model.make_new_valueinfo_name(),
-                TensorProto.INT32,
+                TensorProto.FLOAT,
                 model.get_tensor_shape(node.input[0])
             )
             graph.value_info.append(out_mul_tensor)
@@ -71,7 +71,7 @@ class DoryAvgPoolQuantParser(BaseTrasformation):
                 
                 out_add_tensor = helper.make_tensor_value_info(
                     model.make_new_valueinfo_name(),
-                    TensorProto.INT32,
+                    TensorProto.FLOAT,
                     model.get_tensor_shape(div_input_name)
                 )
                 graph.value_info.append(out_add_tensor)
@@ -85,7 +85,7 @@ class DoryAvgPoolQuantParser(BaseTrasformation):
                 div_input_name = out_add_tensor.name
                 
             # div node to remove the scale
-            D = np.array(self.delta, dtype=np.int32)
+            D = np.array(self.delta, dtype=np.float32)
             D = numpy_helper.from_array(D, model.make_new_valueinfo_name())
             graph.initializer.append(D)
                         
@@ -106,7 +106,7 @@ class DoryAvgPoolQuantParser(BaseTrasformation):
             # clip to apply the relu activation
             out_clip_tensor = helper.make_tensor_value_info(
                 model.make_new_valueinfo_name(),
-                TensorProto.INT32,
+                TensorProto.FLOAT,
                 model.get_tensor_shape(out_div_tensor.name)
             )
             

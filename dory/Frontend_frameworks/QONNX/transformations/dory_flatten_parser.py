@@ -32,7 +32,7 @@ class DoryFlattenParser(BaseTrasformation):
                 
             flatten_dim = np.prod(in_shape[1:])
             
-            shape_arr = np.array([-1, flatten_dim], dtype=np.int32)
+            shape_arr = np.array([-1, flatten_dim], dtype=np.int64)
             shape_tensor = numpy_helper.from_array(shape_arr, model.make_new_valueinfo_name())
             graph.initializer.append(shape_tensor)
 
