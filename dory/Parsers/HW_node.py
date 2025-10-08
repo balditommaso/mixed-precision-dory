@@ -146,7 +146,13 @@ class HW_node(DORY_node):
         if weight_name in self.__dict__:
             if self.weight_bits < 8 and self.group > 1:
                 self.__dict__[weight_name]["value"] = np.asarray(self.__dict__[weight_name]["value"])
-                self.__dict__[weight_name]["value"] = self.__dict__[weight_name]["value"].reshape(self.__dict__[weight_name]["value"].shape[0]//2,2,self.__dict__[weight_name]["value"].shape[1],self.__dict__[weight_name]["value"].shape[2],self.__dict__[weight_name]["value"].shape[3]).transpose(0,2,3,1,4).flatten()
+                self.__dict__[weight_name]["value"] = self.__dict__[weight_name]["value"].reshape(
+                    self.__dict__[weight_name]["value"].shape[0] // 2, 
+                    2, 
+                    self.__dict__[weight_name]["value"].shape[1],
+                    self.__dict__[weight_name]["value"].shape[2],
+                    self.__dict__[weight_name]["value"].shape[3]
+                ).transpose(0,2,3,1,4).flatten()
             else:
                 self.__dict__[weight_name]["value"] = self.__dict__[weight_name]["value"].flatten()
             # self.__dict__[weight_name+"_raw"] = self.__dict__[weight_name]
@@ -168,15 +174,24 @@ class HW_node(DORY_node):
             return [np.uint8((el >> shift) & 255) for el in x for shift in range(0, bits, 8)]
 
         if bias_name in self.__dict__:
-            self.__dict__[bias_name]["value"] = self._to_uint8(self.__dict__[bias_name]['value'].astype(np.int64).ravel(), self.bias_bits)
+            self.__dict__[bias_name]["value"] = self._to_uint8(
+                self.__dict__[bias_name]['value'].astype(np.int64).ravel(), 
+                self.bias_bits
+            )
             self.check_sum_w += sum(self.__dict__[bias_name]["value"])
 
         if 'k' in self.__dict__:
-            self.k["value"] = self._to_uint8(self.k['value'].astype(np.int64).ravel(), self.constant_bits)
+            self.k["value"] = self._to_uint8(
+                self.k['value'].astype(np.int64).ravel(), 
+                self.constant_bits
+            )
             self.check_sum_w += sum(self.k["value"])
 
         if 'l' in self.__dict__:
-            self.l["value"] = self._to_uint8(self.l['value'].astype(np.int64).ravel(), self.constant_bits)
+            self.l["value"] = self._to_uint8(
+                self.l['value'].astype(np.int64).ravel(), 
+                self.constant_bits
+            )
             self.check_sum_w += sum(self.l["value"])
 
     def add_checksum_activations_integer(self, load_directory, node_number, n_inputs=1):
@@ -199,9 +214,13 @@ class HW_node(DORY_node):
                 except FileNotFoundError:
                     print("========= WARNING ==========")
                     print(f"Input file {os.path.join(load_directory, 'input.txt')} not found; generating random inputs!")
-                    x = np.random.randint(low=0, high=2**8 - 1,
-                                             size=self.input_channels * self.input_dimensions[0] * self.input_dimensions[1],
-                                             dtype=np.uint8)
+                    # 8-bit unsigned
+                    x = np.random.randint(
+                        low=0, 
+                        high=2**8 - 1,
+                        size=self.input_channels * self.input_dimensions[0] * self.input_dimensions[1],
+                        dtype=np.uint8
+                    )
             else:
                 infile = f'out_layer{node_number-1}.txt' if n_inputs == 1 else f'out_{in_idx}_layer{node_number-1}.txt'
                 try:

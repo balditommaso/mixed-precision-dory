@@ -26,11 +26,25 @@ import copy
 # DORY modules
 from .HW_node import HW_node
 from dory.Utils.DORY_utils import Printer
+from dory.Parsers.DORY_node import DORY_node
+from typing import *
 
 
 class Parser_DORY_to_HW:
     # Used to manage the ONNX files. By now, supported Convolutions (PW and DW), Pooling, Fully Connected and Relu.
-    def __init__(self, graph, rules, Pattern_rewriter, supported_nodes, HW_description, network_directory, config_file, Tiler, n_inputs=1):
+    def __init__(
+        self, 
+        graph: List[DORY_node], 
+        rules: Dict[str, Any], 
+        Pattern_rewriter, 
+        supported_nodes: List[str], 
+        HW_description: Dict[str, Any], 
+        network_directory: str, 
+        config_file: Dict[str, Any], 
+        Tiler, 
+        n_inputs: int = 1,
+        verify_checksum: bool = True
+    ):
         self.supported_nodes = supported_nodes
         self.DORY_Graph = graph
         self.Printer_Frontend = Printer("logs/HW_related")
@@ -40,6 +54,7 @@ class Parser_DORY_to_HW:
         self.network_directory = network_directory
         self.config_file = config_file
         self.n_inputs = n_inputs
+        self.verify_checksum = verify_checksum
         HW_node.Tiler = Tiler
 
     def mapping_to_HW_nodes(self):
@@ -186,7 +201,9 @@ class Parser_DORY_to_HW:
         print("\nDORY Backend: Formatting constants and adding checksums")
         for i, node in enumerate(self.DORY_Graph):            
             node.add_checksum_w_integer()           
-            node.add_checksum_activations_integer(self.network_directory, i, self.n_inputs)
+            # HACK TOMMASO: QONNX do not generate it
+            if self.verify_checksum:
+                node.add_checksum_activations_integer(self.network_directory, i, self.n_inputs)
 
     def full_graph_parsing(self):
         print("#####################################################")
@@ -215,8 +232,7 @@ class Parser_DORY_to_HW:
         self.Printer_Frontend.print_json_from_DORY_graph("06_DORY_HW_tiled_graph", self.DORY_Graph)
         self.Printer_Frontend.print_onnx_from_DORY_graph("06_DORY_HW_tiled_graph", self.DORY_Graph)
         self.renaming_weights()
-        # HACK TOMMASO: QONNX do not generate it
-        # self.formatting_constant_parameters_tensors_and_activations() 
+        self.formatting_constant_parameters_tensors_and_activations() 
         self.Printer_Frontend.print_json_from_DORY_graph("07_DORY_HW_with_checksums", self.DORY_Graph)
         self.Printer_Frontend.print_onnx_from_DORY_graph("07_DORY_HW_with_checksums", self.DORY_Graph)
         self.check_graph()

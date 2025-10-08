@@ -29,9 +29,9 @@ def print_template_network(
     config_file,
     verbose_level,
     perf_layer,
-        app_directory,
-        inc_dir_rel,
-        src_dir_rel
+    app_directory,
+    inc_dir_rel,
+    src_dir_rel
 ):
     # Generate the Network management c file.
     tk = OrderedDict([])
@@ -85,6 +85,16 @@ def print_template_network(
             except (TypeError, IndexError):
                 l += "// %s %s\n" % (k.ljust(30), v)
     tk['DORY_HW_graph'] = graph
+    # only render checksum block if all nodes have the required attributes
+    render_checksums = (
+        graph and
+        all(hasattr(node, 'check_sum_in') and node.check_sum_in is not None for node in graph) and
+        all(hasattr(node, 'check_sum_out') and node.check_sum_out is not None for node in graph) and
+        all(hasattr(node, 'check_sum_w') and node.check_sum_w is not None for node in graph)
+    )
+    tk['render_checksum'] = render_checksums
+
+    # render the templates with the required informations
     root = os.path.realpath(os.path.dirname(__file__))
     tmpl = Template(filename=os.path.join(root, "../../Hardware_targets", HW_description["name"], "Templates/network_c_template.c"))
     s = tmpl.render(verbose_log=l, **tk)

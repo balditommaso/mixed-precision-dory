@@ -28,11 +28,22 @@ import json
 from importlib import import_module
 
 
-def dory_to_c(graph, target, conf, confdir, verbose_level, perf_layer, optional, appdir, n_inputs):
+def dory_to_c(
+    graph, 
+    target, 
+    conf, 
+    confdir, 
+    verbose_level, 
+    perf_layer, 
+    optional, 
+    appdir, 
+    n_inputs,
+    verify_checksum
+) -> None:
     # Including and running the transformation from DORY IR to DORY HW IR
     onnx_manager = import_module(f'dory.Hardware_targets.{target}.HW_Parser')
     dory_to_dory_hw = onnx_manager.onnx_manager
-    graph = dory_to_dory_hw(graph, conf, confdir, n_inputs).full_graph_parsing()
+    graph = dory_to_dory_hw(graph, conf, confdir, n_inputs, verify_checksum).full_graph_parsing()
 
     # Deployment of the model on the target architecture
     onnx_manager = import_module(f'dory.Hardware_targets.{target}.C_Parser')
@@ -75,7 +86,18 @@ def network_generate(
     onnx_to_dory = onnx_manager.onnx_manager
     graph = onnx_to_dory(onnx_file, conf, prefix, verbose=verbose_level != "None").full_graph_parsing()
 
-    dory_to_c(graph, target, conf, confdir, verbose_level, perf_layer, optional, appdir, n_inputs)
+    dory_to_c(
+        graph, 
+        target, 
+        conf, 
+        confdir, 
+        verbose_level, 
+        perf_layer, 
+        optional, 
+        appdir, 
+        n_inputs, 
+        frontend != "QONNX"
+    )
 
 
 if __name__ == '__main__':
@@ -95,6 +117,7 @@ if __name__ == '__main__':
                              "Last+Perf_final: all check + final performances \n"
                              "Extract the parameters from the onnx model")
     parser.add_argument('--perf_layer', action='store_true', help='Print the performance of each layer.')
+
     parser.add_argument('--optional', default='auto', choices=optional_choices,
                         help='auto (based on layer precision, 8bits or mixed-sw), 8bit, mixed-hw, mixed-sw')
     parser.add_argument('--app_dir', default='./application', help='Path to the generated application. Default: ./application')
@@ -102,5 +125,13 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    network_generate(args.frontend, args.hardware_target, args.config_file, args.verbose_level, 'Yes' if args.perf_layer else 'No',
-                     args.optional, args.app_dir, args.prefix)
+    network_generate(
+        args.frontend, 
+        args.hardware_target, 
+        args.config_file, 
+        args.verbose_level, 
+        'Yes' if args.perf_layer else 'No',
+        args.optional, 
+        args.app_dir, 
+        args.prefix
+    )

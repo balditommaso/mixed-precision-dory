@@ -137,31 +137,31 @@ static int branch_change[${len(DORY_HW_graph)}] = {\
 % endfor
 };
 
-## % if hasattr(DORY_HW_graph[0], 'check_sum_in') and hasattr(DORY_HW_graph[0], 'check_sum_w'):
-## static int weights_checksum[${len(DORY_HW_graph)}] = {\
-## % for node in DORY_HW_graph:
-## ${node.check_sum_w}${'' if loop.last else ', '}\
-## % endfor
-## };
-## static int activations_checksum[${len(DORY_HW_graph)}][${DORY_HW_graph[0].n_test_inputs}] = {\
-## % for i in range(len(DORY_HW_graph)):
-## {
-##   % for j in range(DORY_HW_graph[0].n_test_inputs):
-##   ${DORY_HW_graph[i].check_sum_in[j]}${", " if j != DORY_HW_graph[0].n_test_inputs-1 else ""}  \
-##   % endfor
-## }${"," if i != len(DORY_HW_graph)-1 else ""}
-## % endfor
-## };
-## static int activations_out_checksum[${len(DORY_HW_graph)}][${DORY_HW_graph[0].n_test_inputs}] = {\
-## % for i in range(len(DORY_HW_graph)):
-## {
-##   % for j in range(DORY_HW_graph[0].n_test_inputs):
-##   ${DORY_HW_graph[i].check_sum_out[j]}${", " if j != DORY_HW_graph[0].n_test_inputs-1 else ""} \
-##     % endfor
-## }${"," if i != len(DORY_HW_graph)-1 else ""}
-## % endfor
-## };
-## % endif
+% if render_checksum:
+static int weights_checksum[${len(DORY_HW_graph)}] = {\
+% for node in DORY_HW_graph:
+${node.check_sum_w}${'' if loop.last else ', '}\
+% endfor
+};
+static int activations_checksum[${len(DORY_HW_graph)}][${DORY_HW_graph[0].n_test_inputs}] = {\
+% for i in range(len(DORY_HW_graph)):
+{
+  % for j in range(DORY_HW_graph[0].n_test_inputs):
+  ${DORY_HW_graph[i].check_sum_in[j]}${", " if j != DORY_HW_graph[0].n_test_inputs-1 else ""}  \
+  % endfor
+}${"," if i != len(DORY_HW_graph)-1 else ""}
+% endfor
+};
+static int activations_out_checksum[${len(DORY_HW_graph)}][${DORY_HW_graph[0].n_test_inputs}] = {\
+% for i in range(len(DORY_HW_graph)):
+{
+  % for j in range(DORY_HW_graph[0].n_test_inputs):
+  ${DORY_HW_graph[i].check_sum_out[j]}${", " if j != DORY_HW_graph[0].n_test_inputs-1 else ""} \
+  % endfor
+}${"," if i != len(DORY_HW_graph)-1 else ""}
+% endfor
+};
+% endif
 
 static int weights_size[${len(DORY_HW_graph)}] = {\
 % for node in DORY_HW_graph:

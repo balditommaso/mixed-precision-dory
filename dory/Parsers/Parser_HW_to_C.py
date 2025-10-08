@@ -120,8 +120,8 @@ class Parser_HW_to_C:
                     constants[3] = name
             weights = np.asarray([])
             for i in np.arange(4):
-                if constants[i]!= 0:
-                    weights = np.concatenate((weights,node.__dict__[constants[i]]["value"]))
+                if constants[i] != 0:
+                    weights = np.concatenate((weights, node.__dict__[constants[i]]["value"]))
             while len(weights) % 4 != 0:
                 weights = np.concatenate((weights, np.asarray([0])))
             if weights.shape[0] != 0:
@@ -140,9 +140,12 @@ class Parser_HW_to_C:
             except FileNotFoundError:
                 print(f"========= WARNING ==========\nInput file {os.path.join(self.network_directory, 'input.txt')} not found; generating random inputs!")
 
-                x_in = np.random.randint(low=0, high=2*8,
-                                         size=self.group * self.input_channels * self.input_dimensions[0] * self.input_dimensions[1],
-                                         dtype=np.uint8)
+                x_in = np.random.randint(
+                    low=0, 
+                    high=2*8,
+                    size=self.HWgraph[0].group * self.HWgraph[0].input_channels * self.HWgraph[0].input_dimensions[0] * self.HWgraph[0].input_dimensions[1],
+                    dtype=np.uint8
+                )
 
             in_node = self.HWgraph[0]
             in_bits = in_node.input_activation_bits
