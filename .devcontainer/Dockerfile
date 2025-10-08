@@ -31,7 +31,6 @@ RUN apt-get update && \
         libsdl2-ttf-dev \
         wget \
         unzip \
-        zsh \
         sed && \
     update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
 
