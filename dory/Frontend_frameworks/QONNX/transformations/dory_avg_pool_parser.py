@@ -43,7 +43,9 @@ class DoryAvgPoolQuantParser(BaseTrasformation):
             rounding_mode = get_by_name(node.attribute, "rounding_mode").s.decode("utf-8")
             signed = bool(get_by_name(node.attribute, "signed").i)
             
-            M = np.round(out_scale / in_scale * self.delta).astype(np.float32)
+            round_fx = resolve_rounding_mode(rounding_mode)
+            
+            M = round_fx(out_scale / in_scale * self.delta).astype(np.float32)
             
             M = numpy_helper.from_array(M, model.make_new_valueinfo_name())
             graph.initializer.append(M)

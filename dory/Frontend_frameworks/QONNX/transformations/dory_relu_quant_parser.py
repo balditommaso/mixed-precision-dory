@@ -45,13 +45,7 @@ class DoryActQuantParser(BaseTrasformation):
             out_shape = model.get_tensor_shape(prev_node.output[0])
             C_out = out_shape[1] if len(out_shape) > 1 else out_shape[0]
             
-            M = round_fx(out_scale / quant_scale * self.delta)
-            # NOTE: channel-wise not supported in Dory
-            # if np.isscalar(M) or np.size(M) == 1:
-            #     M = np.full((C_out, 1, 1), float(M), dtype=np.float32)
-            # else:
-            #     M = np.reshape(M, (C_out, 1, 1)).astype(np.float32)
-            
+            M = round_fx(out_scale / quant_scale * self.delta).astype(np.float32)
             M = numpy_helper.from_array(M, model.make_new_valueinfo_name())
             graph.initializer.append(M)
             

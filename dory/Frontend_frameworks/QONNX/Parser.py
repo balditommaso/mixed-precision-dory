@@ -32,10 +32,14 @@ class onnx_manager(Quantlab_onnx_manager):
         config_file: Dict[str, Any], 
         net_prefix: str = "", 
         log: str = "./logs/Frontend",
+        delta: int = 2**30,
         verbose: bool = False
     ):
-        # TODO: adapter QONNX -> Quantlab ONNX
-        # setup log directory
+        print("")
+        print("###################################")
+        print("## DORY GENERAL PARSING OF QONNX ##")
+        print("## FINAL RAPRESENTATION: DORY IR ##")
+        print("###################################")
         self.log_dir = os.path.join(log, "onnx_files/")
         os.system(f"rm -rf {self.log_dir}")
         os.system(f"mkdir -p {self.log_dir}")
@@ -54,14 +58,13 @@ class onnx_manager(Quantlab_onnx_manager):
         model.save(os.path.join(self.log_dir, "C_QONNX_remove_input_quant.onnx"))
         # adapt to dory activation quantization
         transformed_onnx_path = os.path.join(self.log_dir, "D_QONNX_parse_quant_act.onnx")
-        model = model.transform(DoryActQuantParser(delta=2**19, verbose=verbose))
-        model = model.transform(DoryAvgPoolQuantParser(delta=2**19, verbose=verbose))
+        model = model.transform(DoryActQuantParser(delta=delta, verbose=verbose))
+        model = model.transform(DoryAvgPoolQuantParser(delta=delta, verbose=verbose))
         model = model.transform(InferShapes())
         model = model.transform(DoryFlattenParser(verbose=verbose))
         model = model.transform(RenameTensorsSequentially(verbose=verbose))
         model.save(transformed_onnx_path)
-
-        # TODO: check the correctness of the transformations
+        print("QONNX conversion complete!\nValidation...")
         self.check_flow(qonnx_model, transformed_onnx_path, config_file)
         
         # call the Quantlab manager
@@ -94,25 +97,62 @@ class onnx_manager(Quantlab_onnx_manager):
         qonnx_output = np.load(os.path.join(self.log_dir, "global_out_batch0.npy"))
         
         model = on.load(transformed_model)
-        remove_names = {"out_scale", "weight_bits", "bias_bits", "input_bits", "out_bits", "min", "max"}
-        for node in model.graph.node:
-            keep_attrs = [a for a in node.attribute if a.name not in remove_names]
+        graph = model.graph
+
+        # remove and adapt custom attribute from Dory-like DAG
+        remove_names = {"out_scale", "weight_bits", "bias_bits", "input_bits", "out_bits"}
+        convert_to_inputs = {"min", "max"}
+
+        for idx, node in enumerate(graph.node):
+            keep_attrs = []
+            for attr in node.attribute:
+                if attr.name in convert_to_inputs:
+                    # Create Constant node for each attr (min or max)
+                    tensor_name = f"{node.name}_{attr.name}_const_{idx}"
+                    const_tensor = on.helper.make_tensor(
+                        name=tensor_name,
+                        data_type=on.TensorProto.FLOAT,
+                        dims=[],
+                        vals=[attr.i],  # assuming float attribute
+                    )
+                    const_node = on.helper.make_node(
+                        "Constant",
+                        inputs=[],
+                        outputs=[tensor_name],
+                        value=const_tensor
+                    )
+                    # Insert constant node before the current one
+                    graph.node.insert(0, const_node)
+                    # Add as input to the current node
+                    node.input.append(tensor_name)
+                elif attr.name not in remove_names:
+                    keep_attrs.append(attr)
+
+            # Replace attributes
             if len(keep_attrs) != len(node.attribute):
-                # clear all attributes then copy back the ones to keep
                 node.ClearField("attribute")
                 for a in keep_attrs:
                     node.attribute.add().CopyFrom(a)
-        
+        # compute the output of Dory-like DAG        
         sess = ort.InferenceSession(model.SerializeToString())
-        res =sess.run([sess.get_outputs()[0].name], {"0": random_tensor})[0]
+        dory_output =sess.run([sess.get_outputs()[0].name], {"0": random_tensor})[0]
 
-        diff = qonnx_output - res
+        
+        def cosine_sim_rowwise(A, B):
+            num = np.sum(A * B, axis=-1)
+            denom = np.linalg.norm(A, axis=-1) * np.linalg.norm(B, axis=-1)
+            return num / (denom + 1e-12)
+        
+        def minmax_norm(x, axis=-1, eps=1e-8):
+            """Normalize to [0,1] per sample along given axis."""
+            x_min = x.min(axis=axis, keepdims=True)
+            x_max = x.max(axis=axis, keepdims=True)
+            return (x - x_min) / (x_max - x_min + eps)
 
-        print("Shape:", diff.shape)
-        print("Mean absolute difference:", np.mean(np.abs(diff)))
-        print("Max absolute difference:", np.max(np.abs(diff)))
-        print("L2 norm difference:", np.linalg.norm(diff))
-        print("Relative L2 error:", np.linalg.norm(diff) / np.linalg.norm(qonnx_output))
-        print("Are they exactly equal?", np.allclose(qonnx_output, res))
-        print("Are prediction equal?", qonnx_output.argmax() == res.argmax())
+        
+        norm_qonnx = minmax_norm(qonnx_output)
+        norm_dory = minmax_norm(dory_output)
+        cosine_per_sample = cosine_sim_rowwise(norm_qonnx, norm_dory)
+        print("Are prediction equal?", qonnx_output.argmax() == dory_output.argmax())
+        print("cosine mean (close to 1 is good):", cosine_per_sample.mean(), "min:", cosine_per_sample.min())
         return
