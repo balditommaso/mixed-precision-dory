@@ -96,7 +96,7 @@ def network_generate(
         optional, 
         appdir, 
         n_inputs, 
-        frontend != "QONNX"
+        verify_checksum=frontend != "QONNX"
     )
 
 

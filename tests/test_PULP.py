@@ -32,7 +32,6 @@ networks = [
             "checksum_final": 'OK'
     },
     {
-
             "network_args":
             {
                 'frontend': 'Quantlab',
@@ -109,7 +108,17 @@ networks = [
                 'optional': 'mixed-sw'
             },
         "checksum_final": 'OK'
-    }
+    },
+    {
+        "network_args":
+            {
+                'frontend': 'QONNX',
+                'target': 'PULP.PULP_gvsoc',
+                'conf_file': './models/checkpoint/config_files/config_QONNX_dummy_8bits.json',
+                'optional': 'mixed-sw'
+            },
+        "checksum_final": 'OK'
+    },
 ]
 
 

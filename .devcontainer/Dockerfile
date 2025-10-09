@@ -95,7 +95,8 @@ RUN     source /dory_env/bin/activate && \
         cd /gap_riscv_toolchain_ubuntu_18/gap_sdk/ && \
         python3 -m pip uninstall -y torch torchvision && \
         python3 -m pip install torch torchvision && \
-        python3 -m pip install brevitas pytorch-lightning tensorboard
+        python3 -m pip install brevitas pytorch-lightning tensorboard && \
+        python3 -m pip install argcomplete pyelftools
 
 # -------------------------
 # Add vscode user for VS Code
