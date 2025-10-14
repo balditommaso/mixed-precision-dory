@@ -29,7 +29,8 @@ from dory.Utils.Templates_writer.TemplateWriter import TemplateWriter
 import dory.Hardware_targets.PULP.Backend_Kernels.BackendKernelsAdapter as BackendKernelsAdapter
 
 
-class C_Parser_PULP(Parser_HW_to_C):
+class C_Parser_PULP(Parser_HW_to_C):
+
     # Used to manage the ONNX files. By now, supported Convolutions (PW and DW), Pooling, Fully Connected and Relu.
     def __init__(self, graph, config_file, config_file_dir, verbose_level, perf_layer, precision_library, app_directory, n_inputs=1):
 
@@ -43,7 +44,8 @@ class C_Parser_PULP(Parser_HW_to_C):
         try:
             db = HW_description['double_buffering']
         except KeyError:
-            print("C_Parser_PULP: Key 'double_buffering' not found in HW_description.json - setting to 2")
+            print("C_Parser_PULP: Key 'double_buffering' not found in HW_description.json - setting to 2")
+
             db = 2
         self.double_buffering = db
 
@@ -52,10 +54,15 @@ class C_Parser_PULP(Parser_HW_to_C):
         precision_library = "8bit"
         for node in graph:
             if "Addition" not in node.name and "Pool" not in node.name:
-                if node.get_parameter('output_activation_bits') < 8 or node.get_parameter('input_activation_bits') < 8 or node.get_parameter('weight_bits') < 8:
+                if node.get_parameter('output_activation_bits') < 8 or \
+                    node.get_parameter('input_activation_bits') < 8 or \
+                    node.get_parameter('weight_bits') < 8:
+                    
                     precision_library = 'mixed-sw'
             else:
-                if node.get_parameter('output_activation_bits') < 8 or node.get_parameter('input_activation_bits') < 8:
+                if node.get_parameter('output_activation_bits') < 8 or \
+                    node.get_parameter('input_activation_bits') < 8:
+                        
                     precision_library = 'mixed-sw'
         return precision_library
 
@@ -64,13 +71,31 @@ class C_Parser_PULP(Parser_HW_to_C):
 
     def copy_backend_files(self, node, backend_library):
         if backend_library == "8bit":
-            backendKernelsAdapter = BackendKernelsAdapter.PulpNNAdapter("pulp-nn", node, self.source_Constant_bits_library)
+            backendKernelsAdapter = BackendKernelsAdapter.PulpNNAdapter(
+                "pulp-nn", 
+                node, 
+                self.source_Constant_bits_library
+            )
         elif backend_library == "mixed-sw":
-            backendKernelsAdapter = BackendKernelsAdapter.PulpMixedAdapter("pulp-nn-mixed", node, self.source_Constant_bits_library, "sw")
+            backendKernelsAdapter = BackendKernelsAdapter.PulpMixedAdapter(
+                "pulp-nn-mixed", 
+                node, 
+                self.source_Constant_bits_library, 
+                "sw"
+            )
         elif backend_library == "mixed-hw":
-            backendKernelsAdapter = BackendKernelsAdapter.PulpMixedAdapter("pulp-nn-mixed", node, self.source_Constant_bits_library, "hw")
+            backendKernelsAdapter = BackendKernelsAdapter.PulpMixedAdapter(
+                "pulp-nn-mixed", 
+                node, 
+                self.source_Constant_bits_library, 
+                "hw"
+            )
         elif backend_library == "ne16":
-            backendKernelsAdapter = BackendKernelsAdapter.PulpNNXAdapter("pulp-nnx", node, "ne16")
+            backendKernelsAdapter = BackendKernelsAdapter.PulpNNXAdapter(
+                "pulp-nnx", 
+                node, 
+                "ne16"
+            )
         else:
             raise ValueError(f"Unrecognised backend library: {backend_library}")
 
@@ -91,14 +116,33 @@ class C_Parser_PULP(Parser_HW_to_C):
             backend_library = self.node_backend_library(node)
             self.copy_backend_files(node, backend_library)
 
-            if n_memory_levels > 2 and (node.L3_input != 0 or (node.tiling_dimensions["L3"]["output_dimensions"] != node.tiling_dimensions["L2"]["output_dimensions"]) or (node.tiling_dimensions["L3"]["weights_dimensions"] != node.tiling_dimensions["L2"]["weights_dimensions"])):
+            if n_memory_levels > 2 and \
+                (
+                    node.L3_input != 0 or \
+                        (node.tiling_dimensions["L3"]["output_dimensions"] != node.tiling_dimensions["L2"]["output_dimensions"]) or \
+                        (node.tiling_dimensions["L3"]["weights_dimensions"] != node.tiling_dimensions["L2"]["weights_dimensions"]) \
+                ):
                 tk = Layer2D_writer.print_template_layer_L3(node)
-                TemplateWriter.write(tk, {os.path.join(self.src_dir, node.prefixed_name + ".c"): os.path.join(self.tmpl_dir, "layer_L3_c_template.c"),
-                                          os.path.join(self.inc_dir, node.prefixed_name + ".h"): os.path.join(self.tmpl_dir, "layer_L3_h_template.h")})
+                TemplateWriter.write(tk, {
+                    os.path.join(self.src_dir, node.prefixed_name + ".c"): os.path.join(self.tmpl_dir, "layer_L3_c_template.c"),
+                    os.path.join(self.inc_dir, node.prefixed_name + ".h"): os.path.join(self.tmpl_dir, "layer_L3_h_template.h")
+                })
+                
                 if node.tiling_dimensions["L3"]["input_dimensions"][1] > node.tiling_dimensions["L2"]["input_dimensions"][1]:
-                    node.tiling_dimensions["L2"]["output_dimensions"][1]  = int(np.floor((node.tiling_dimensions["L2"]["input_dimensions"][1] - node.kernel_shape[0] + node.strides[0]) / node.strides[0]))
+                    node.tiling_dimensions["L2"]["output_dimensions"][1] = int(
+                        np.floor(
+                            (node.tiling_dimensions["L2"]["input_dimensions"][1] \
+                                - node.kernel_shape[0] \
+                                + node.strides[0]) / node.strides[0]
+                        )
+                    )
                 if node.tiling_dimensions["L3"]["output_dimensions"][1] > node.tiling_dimensions["L2"]["output_dimensions"][1]:
-                    node.tiling_dimensions["L2"]["input_dimensions"][1]   = node.tiling_dimensions["L2"]["output_dimensions"][1] * node.strides[0] + node.kernel_shape[0] - node.strides[0]
+                    # i_dim = o_dim * stride + k - stride
+                    node.tiling_dimensions["L2"]["input_dimensions"][1] = node.tiling_dimensions["L2"]["output_dimensions"][1] \
+                        * node.strides[0] \
+                        + node.kernel_shape[0] \
+                        - node.strides[0]
+                        
                 node.name = node.name + "_L2"
                 padding = node.pads
                 node.pads = [0, padding[1], 0, padding[3]]
@@ -112,7 +156,23 @@ class C_Parser_PULP(Parser_HW_to_C):
                     TemplateWriter.write(tk, self.l2_template_mapping(node, backend_library))
                     node.name = node.name[:-1] + "b"
                     node.pads = [0, padding[1], padding[2], padding[3]]
-                    node.tiling_dimensions["L2"]["input_dimensions"][1] -= (padding[2] - ((node.tiling_dimensions["L3"]["input_dimensions"][1] + padding[0] + padding[2]) - (node.tiling_dimensions["L3"]["output_dimensions"][1]* node.strides[0] + node.kernel_shape[0] - node.strides[0])))
+                    # i_L2 -= (p_bot - ((i_L3 + p_top + p_bot) - (o_L3 * stride + k - stride)))
+                    node.tiling_dimensions["L2"]["input_dimensions"][1] -= (padding[2] - \
+                        (
+                            (
+                                node.tiling_dimensions["L3"]["input_dimensions"][1] \
+                                + padding[0] \
+                                + padding[2] \
+                            )
+                                - \
+                            (
+                                node.tiling_dimensions["L3"]["output_dimensions"][1] \
+                                * node.strides[0] \
+                                + node.kernel_shape[0] \
+                                - node.strides[0] \
+                            )
+                        )
+                    )
                     if node.tiling_dimensions["L1"]["input_dimensions"][1] > node.tiling_dimensions["L2"]["input_dimensions"][1]:
                         node.tiling_dimensions["L1"]["input_dimensions"][1] = node.tiling_dimensions["L2"]["input_dimensions"][1]
                     if node.tiling_dimensions["L1"]["output_dimensions"][1] > node.tiling_dimensions["L2"]["output_dimensions"][1]:
@@ -122,9 +182,25 @@ class C_Parser_PULP(Parser_HW_to_C):
                     node.name = node.name[:-7]
             else:
                 if node.tiling_dimensions["L2"]["input_dimensions"][2] == node.tiling_dimensions["L1"]["input_dimensions"][2]:
-                    node.tiling_dimensions["L1"]["output_dimensions"][2] = int((node.tiling_dimensions["L1"]["input_dimensions"][2] + (node.pads[1] + node.pads[3]) - node.kernel_shape[1] + node.strides[1]) / node.strides[1])
+                    node.tiling_dimensions["L1"]["output_dimensions"][2] = int(
+                        (
+                            node.tiling_dimensions["L1"]["input_dimensions"][2] \
+                            + (node.pads[1] + node.pads[3]) \
+                            - node.kernel_shape[1] \
+                            + node.strides[1] \
+                        ) \
+                        / node.strides[1]
+                    )
                 if node.tiling_dimensions["L2"]["input_dimensions"][1] == node.tiling_dimensions["L1"]["input_dimensions"][1]:
-                    node.tiling_dimensions["L1"]["output_dimensions"][1] = int((node.tiling_dimensions["L1"]["input_dimensions"][1] + (node.pads[0] + node.pads[2]) - node.kernel_shape[0] + node.strides[0]) / node.strides[0])
+                    node.tiling_dimensions["L1"]["output_dimensions"][1] = int(
+                        (
+                            node.tiling_dimensions["L1"]["input_dimensions"][1] \
+                            + (node.pads[0] + node.pads[2]) \
+                            - node.kernel_shape[0] \
+                            + node.strides[0]
+                        ) \
+                        / node.strides[0]
+                    )
                 tk = self.l2_template_keywords(node, backend_library)
                 TemplateWriter.write(tk, self.l2_template_mapping(node, backend_library))
 

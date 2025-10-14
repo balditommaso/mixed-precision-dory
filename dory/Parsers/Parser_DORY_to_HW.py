@@ -201,7 +201,7 @@ class Parser_DORY_to_HW:
         print("\nDORY Backend: Formatting constants and adding checksums")
         for i, node in enumerate(self.DORY_Graph):            
             node.add_checksum_w_integer()           
-            # HACK TOMMASO: QONNX do not generate it
+            # HACK TOMMASO: QONNX do not generate input checksum
             if self.verify_checksum:
                 node.add_checksum_activations_integer(self.network_directory, i, self.n_inputs)
 

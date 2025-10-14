@@ -144,9 +144,9 @@ class PulpMixedAdapter(PulpNNAdapter):
         elif "FullyConnected" in self.node.name:
             src_files.append(f"LinearQuant/{maybe_x}pulp_nn_linear{in_out_weights}.c")
 
-        if (
-            "Conv" in self.node.name or "FullyConnected" in self.node.name
-        ) and self.node.get_parameter("output_activation_bits") != 32:
+        if ("Conv" in self.node.name or "FullyConnected" in self.node.name) and \
+            self.node.get_parameter("output_activation_bits") != 32:
+                
             in_bits_matmul = "8" if self._type == "sw" else str(in_bits)
             in_out_weights = (
                 "_"
