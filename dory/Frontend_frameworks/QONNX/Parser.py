@@ -54,7 +54,6 @@ class onnx_manager(Quantlab_onnx_manager):
         # apply transformations
         model = cleanup_model(model, override_inpsize=1)
         model.save(os.path.join(self.log_dir, "A_QONNX_cleanup.onnx"))
-        qonnx_model = deepcopy(model)
         # fold static quantization
         model = model.transform(RecordOutScale(verbose=verbose))
         model = model.transform(FoldStaticQuant(verbose=verbose))

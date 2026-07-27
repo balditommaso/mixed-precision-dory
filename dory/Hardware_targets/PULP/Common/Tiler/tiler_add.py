@@ -45,11 +45,11 @@ class Tiler_Add_PULP():
         else:
             input_L3 = 0
             
-        buffer_total = sum(
+        buffer_total = sum((
             self.HW_node.input_activation_memory,
             self.HW_node.output_activation_memory, 
             self.HW_node.constants_memory
-        )
+        ))
         if (buffer_total <= L2_memory) and input_L3==0:
             return (
                 [], 
@@ -72,11 +72,11 @@ class Tiler_Add_PULP():
         ###############################################
         ##### PARAMETERS INITIALIZATION ###############
         ###############################################
-        L1_memory = sum(
+        L1_memory = sum((
             self.HW_node.HW_description["memory"]["L1"]["dimension"],
             -self.HW_node.HW_description["HW specific parameters"]["accelerator core0 stack"],
             -7 * self.HW_node.HW_description["HW specific parameters"]["accelerator core1-7 stack"]
-        )
+        ))
         inp_dim = self.HW_node.tiling_dimensions["L2"]["input_dimensions"][1:]
         out_dim = self.HW_node.tiling_dimensions["L2"]["output_dimensions"][1:]
         out_ch = self.HW_node.tiling_dimensions["L2"]["output_dimensions"][0]

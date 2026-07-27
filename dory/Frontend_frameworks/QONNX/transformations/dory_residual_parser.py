@@ -18,17 +18,23 @@ def merge_add_quant(mw: ModelWrapper, node: NodeProto, delta: int = 16) -> None:
     assert inp1 is not None and inp1.op_type == "Quant", f"{inp1.name} should be a `Quant` node"
     assert inp2 is not None and inp2.op_type == "Quant", f"{inp2.name} should be a `Quant` node"
     
-    successor = mw.find_direct_successors(node)
-    assert successor and len(successor) == 1 and successor[0].op_type == "Relu"
-    relu_node = successor[0]
+    quant_node = None
     
-    quant_node = mw.find_consumer(relu_node.output[0])
-    assert quant_node is not None and quant_node.op_type == "Quant"
+    while quant_node is None:
+        successor = mw.find_direct_successors(node)
+        assert successor and len(successor) == 1 
+        
+        if successor[0].op_type == "Quant":
+            quant_node = successor[0]
     
-    # remove the relu
-    relu_input = relu_node.input[0]
-    quant_node.input[0] = relu_input
-    mw.graph.node.remove(relu_node)
+        elif successor[0].op_type == "Relu":  
+            relu_node = successor[0]
+            relu_input = relu_node.input[0]
+            next_node = mw.find_consumer(relu_node.output[0])
+            next_node.input[0] = relu_input
+            mw.graph.node.remove(relu_node)
+        else:
+            raise NotImplementedError("Unexpected op. after Add.")
     
     # merge quant info into the add node  
     out_scale = get_prev_out_scale(mw, quant_node)

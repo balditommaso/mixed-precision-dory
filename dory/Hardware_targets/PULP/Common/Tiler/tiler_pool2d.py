@@ -45,11 +45,11 @@ class Tiler_Pool2D_PULP():
         else:
             input_L3 = 0
             
-        buffer_total = sum(
+        buffer_total = sum((
             self.HW_node.input_activation_memory,
             self.HW_node.output_activation_memory,
             self.HW_node.constants_memory
-        )
+        ))
         if buffer_total <= L2_memory and input_L3 == 0:
             return (
                 [], 
@@ -166,11 +166,11 @@ class Tiler_Pool2D_PULP():
         ###############################################
         ##### L2 DIMENSIONS DEFINITION: EARLY EXIT ####
         ###############################################
-        buffer_total = sum(
+        buffer_total = sum((
             self.HW_node.tiling_dimensions["L2"]["constants_memory"], 
             self.HW_node.tiling_dimensions["L2"]["input_activation_memory"],
             self.HW_node.tiling_dimensions["L2"]["output_activation_memory"]
-        )
+        ))
         # return immediatly if the memory fits the L1  
         if buffer_total <= L1_memory:
             return (
