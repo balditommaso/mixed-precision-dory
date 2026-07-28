@@ -1,8 +1,0 @@
-{
-	"BNRelu_bits": 32,
-	"onnx_file": "../MLP_mix_bits.onnx",
-    "implementation_config": "../MLP_config_mix_bits_with_lut.json",
-	"code reserved space":120000,
-    "input_bits": 8,
-    "input_signed": false
-}

@@ -12,9 +12,11 @@ class Printer():
         os.system('mkdir -p {}'.format(os.path.join(self.folder,"json_files")))
         os.system('mkdir -p {}'.format(os.path.join(self.folder,"onnx_files")))
 
+
     def print_onnx(self, name_file, graph):
         onnx.save_model(graph, "{}/{}.onnx".format(os.path.join(self.folder,"onnx_files"),name_file))
         print("Creating {}.onnx in {}/". format(name_file, os.path.join(self.folder,"onnx_files")))
+
 
     def print_json(self, name_file, graph):
         s = MessageToJson(graph )
@@ -35,8 +37,8 @@ class Printer():
             json.dump(dict_graph, outfile, indent=2)
         print("Creating {}.json in {}/". format(name_file, os.path.join(self.folder,"json_files")))
 
-    def print_onnx_from_DORY_graph(self, name_file, graph):
 
+    def print_onnx_from_DORY_graph(self, name_file, graph):
         dict_graph = {}
         dict_graph["producerName"] = "DORY"
         dict_graph["producerVersion"] = ""

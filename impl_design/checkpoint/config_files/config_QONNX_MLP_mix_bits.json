@@ -1,8 +1,0 @@
-{
-	"BNRelu_bits": 32,
-	"onnx_file": "../MLP_4bits.onnx",
-    "implementation_config": "../MLP_4bits_impl_info.json",
-	"code reserved space":120000,
-    "input_bits": 8,
-    "input_signed": false
-}

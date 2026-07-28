@@ -1,8 +1,0 @@
-{
-	"BNRelu_bits": 32,
-	"onnx_file": "../quant_MV1_4bit.onnx",
-    "implementation_config": "../quant_MV1_4bit_impl_info.json",
-	"code reserved space":120000,
-    "input_bits": 8,
-    "input_signed": false
-}
