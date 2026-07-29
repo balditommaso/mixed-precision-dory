@@ -50,7 +50,11 @@ def profile_convolution(model: ModelWrapper, node: NodeProto) -> Tuple[int, int,
     weight_shape = model.get_tensor_shape(node.input[1])
     padding = tuple(get_by_name(node.attribute, "pads").ints)
     stride = tuple(get_by_name(node.attribute, "strides").ints)
-    implementation = get_by_name(node.attribute, "implementation").s.decode("utf-8")
+    impl_attr = get_by_name(node.attribute, "implementation")
+    if impl_attr is not None:
+        implementation = impl_attr.s.decode("utf-8")
+    else:
+        implementation = "default"
     input_bitwidth = int(model.get_initializer(find_upstream_quant(model, node.input[0])))
     weight_bitwidth = int(model.get_initializer(find_upstream_quant(model, node.input[1])))
     output_bitwidth = int(model.get_initializer(find_downstream_quant(model, node.output[0])))
