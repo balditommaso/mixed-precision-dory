@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
+from typing import Literal, Union
 
 
 @dataclass(frozen=True)
@@ -179,6 +179,43 @@ class AutoSpecConfig:
             value = getattr(self, name)
             if not 0 <= value <= 1:
                 raise ValueError(f'{name} must be in [0, 1]')
+
+
+@dataclass(frozen=True)
+class TilingModelConfig:
+    """Control how regenerated DORY tiles affect latency.
+
+    ``compute_mode='full_layer'`` is the robust default: useful arithmetic is
+    estimated once for the complete layer, while tile-dependent DMA startup,
+    kernel launches, barriers, and repeated payloads are added separately.
+
+    ``compute_mode='shape_aware'`` re-evaluates every reconstructed tile shape.
+    It should only be enabled after checking that the DORY dimension ordering
+    and channel-tiling semantics are represented correctly for the target.
+    """
+
+    enabled: bool = True
+    level_name: str = 'L1'
+    compute_mode: Literal['full_layer', 'shape_aware'] = 'full_layer'
+    edge_tile_safety_factor: float = 1.00
+    unknown_geometry_compute_factor: float = 1.00
+    unknown_geometry_dma_redundancy_factor: float = 1.05
+    max_dma_redundancy_factor: float = 4.0
+    use_generated_tile_count_first: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.level_name:
+            raise ValueError('level_name cannot be empty')
+        if self.compute_mode not in ('full_layer', 'shape_aware'):
+            raise ValueError("compute_mode must be 'full_layer' or 'shape_aware'")
+        if self.edge_tile_safety_factor < 1:
+            raise ValueError('edge_tile_safety_factor must be >= 1')
+        if self.unknown_geometry_compute_factor < 1:
+            raise ValueError('unknown_geometry_compute_factor must be >= 1')
+        if self.unknown_geometry_dma_redundancy_factor < 1:
+            raise ValueError('unknown_geometry_dma_redundancy_factor must be >= 1')
+        if self.max_dma_redundancy_factor < 1:
+            raise ValueError('max_dma_redundancy_factor must be >= 1')
 
 
 @dataclass(frozen=True)

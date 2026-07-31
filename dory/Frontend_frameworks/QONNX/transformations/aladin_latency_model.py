@@ -1,3 +1,5 @@
+"""Backward-compatible façade for the modular latency package."""
+
 try:
     from .aladin_latency import *
     from .aladin_latency import __all__

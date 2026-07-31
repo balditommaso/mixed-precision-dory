@@ -17,6 +17,7 @@ from .config import (
     KernelCostModel,
     L1BankModel,
     PessimismConfig,
+    TilingModelConfig,
 )
 from .descriptors import (
     AddKernelSpec,
@@ -31,6 +32,7 @@ from .descriptors import (
     PoolKernelSpec,
 )
 from .engine import derive_calibration_scale, process
+from .tiling import TileLoopCounts, TilePlan
 from .estimator import LatencyEstimator
 from .presets import prepare_pulp_hw_spec
 from .reporting import (
@@ -59,6 +61,9 @@ __all__ = [
     "NodeExecutionSpec",
     "NodeSourceMetadata",
     "PessimismConfig",
+    "TilingModelConfig",
+    "TileLoopCounts",
+    "TilePlan",
     "PoolKernelSpec",
     "apply_family_calibrator",
     "classify_node",

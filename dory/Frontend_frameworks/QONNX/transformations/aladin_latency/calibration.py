@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
-from .config import AutoSpecConfig, ExecutionConfig, KernelCostModel, PessimismConfig
+from .config import AutoSpecConfig, ExecutionConfig, KernelCostModel, PessimismConfig, TilingModelConfig
 from .descriptors import PartitionMode
 from .engine import process
 
@@ -432,6 +432,7 @@ def process_calibrated(
     minimum_safety_factor: float = 1.05,
     kernel_cost: Optional[KernelCostModel] = None,
     pessimism: Optional[PessimismConfig] = None,
+    tiling: Optional[TilingModelConfig] = None,
     peak_key: str = "8bits",
     partition_mode: PartitionMode = "implementation_exact",
     kernel_calibration_scales: Optional[Mapping[str, float]] = None,
@@ -464,6 +465,7 @@ def process_calibrated(
         measured_cycles=measurements or None,
         kernel_cost=kernel_cost,
         pessimism=pessimism,
+        tiling=tiling,
         peak_key=peak_key,
         partition_mode=partition_mode,
         kernel_calibration_scales=kernel_calibration_scales,

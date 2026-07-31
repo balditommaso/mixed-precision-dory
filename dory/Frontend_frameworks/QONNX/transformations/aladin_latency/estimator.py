@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from .calibration import FamilyCalibrator, process_calibrated
-from .config import AutoSpecConfig, ExecutionConfig, KernelCostModel, PessimismConfig
+from .config import AutoSpecConfig, ExecutionConfig, KernelCostModel, PessimismConfig, TilingModelConfig
 from .descriptors import PartitionMode
 from .engine import process
 from .reporting import print_pessimistic_latencies
@@ -25,6 +25,7 @@ class LatencyEstimator:
     auto_spec: AutoSpecConfig = field(default_factory=AutoSpecConfig)
     kernel_cost: KernelCostModel = field(default_factory=KernelCostModel)
     pessimism: PessimismConfig = field(default_factory=PessimismConfig)
+    tiling: TilingModelConfig = field(default_factory=TilingModelConfig)
     peak_key: str = "8bits"
     partition_mode: PartitionMode = "implementation_exact"
     kernel_calibration_scales: Mapping[str, float] = field(default_factory=dict)
@@ -40,6 +41,7 @@ class LatencyEstimator:
         parse_generated_code: bool = True,
         pessimism: Optional[PessimismConfig] = None,
         kernel_cost: Optional[KernelCostModel] = None,
+        tiling: Optional[TilingModelConfig] = None,
     ) -> "LatencyEstimator":
         """Create an estimator using the recommended defaults."""
         return cls(
@@ -53,6 +55,7 @@ class LatencyEstimator:
             ),
             pessimism=pessimism or PessimismConfig(),
             kernel_cost=kernel_cost or KernelCostModel(),
+            tiling=tiling or TilingModelConfig(),
         )
 
     def process(
@@ -69,6 +72,7 @@ class LatencyEstimator:
             measured_cycles=measured_cycles,
             kernel_cost=self.kernel_cost,
             pessimism=self.pessimism,
+            tiling=self.tiling,
             peak_key=self.peak_key,
             partition_mode=self.partition_mode,
             kernel_calibration_scales=self.kernel_calibration_scales,
@@ -103,6 +107,7 @@ class LatencyEstimator:
             minimum_safety_factor=minimum_safety_factor,
             kernel_cost=self.kernel_cost,
             pessimism=self.pessimism,
+            tiling=self.tiling,
             peak_key=self.peak_key,
             partition_mode=self.partition_mode,
             kernel_calibration_scales=self.kernel_calibration_scales,

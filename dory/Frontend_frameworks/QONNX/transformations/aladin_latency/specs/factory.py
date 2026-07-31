@@ -84,8 +84,8 @@ def build_execution_spec_automatically(node: Any, config: AutoSpecConfig) -> Tup
         total_tiles = source_meta.total_tiles or 1
         if total_tiles > 1:
             warnings.append(
-                f'Generated code reports {total_tiles} tiles. This version '
-                'uses a conservative blocking whole-layer schedule.'
+                f'Generated code reports {total_tiles} runtime tiles. Tile shapes and '
+                'tile-dependent DMA/control costs are evaluated by the engine.'
             )
         external_barriers = (
             source_meta.team_barriers_outside_kernel
