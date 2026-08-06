@@ -51,14 +51,16 @@ class HW_node(DORY_node):
         except KeyError:
             self.split_ints = False
 
-    def create_tiling_dimensions(self, previous_node, config_file):
-        #  ATTENTION MEMORY L3 --> TILE MEMORY DIMENSION --> Decide how to set. Re-init the whole memory?
+
+    def create_tiling_dimensions(self, previous_node: DORY_node, config_file: dict, num_cores: int = 8):
         for level in range(self.HW_description["memory"]["levels"], 1 ,-1):
             weights_dim, input_dims, output_dims = self.Tiler(
                 self, 
                 previous_node, 
-                config_file["code reserved space"]
+                config_file["code reserved space"],
+                num_cores=num_cores
             ).get_tiling(level)
+            
             self.tiling_dimensions[f"L{level-1}"]["input_dimensions"] = input_dims
             self.tiling_dimensions[f"L{level-1}"]["output_dimensions"] = output_dims
             if "Convolution" in self.name or "FullyConnected" in self.name:
@@ -117,7 +119,7 @@ class HW_node(DORY_node):
 
         Args:
             x (np.ndarray): Input array of integer values (e.g. int8, int16, etc.)
-            bits (int): Number of bits per element (1, 2, 4, 8)
+            bits (int): Number of bits per element (2, 4, 8)
             signed (bool): Whether the input values are signed (two’s complement)
 
         Returns:

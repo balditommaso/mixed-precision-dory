@@ -233,35 +233,38 @@ void ${func_name}(void *args)
   // popolate the LUT 
   if (pi_core_id() == 0)
   {
-    const int num_in = (1 << ${x_data_size_byte});
-    const int num_w = (1 << ${W_data_size_byte});
-    int32_t *lut_buffer = (int32_t*)((uint8_t*)l1_buffer + ${buffer_l1_all});
-
-    // bias for signed values
-    const int in_bias = (1 << ${x_data_size_byte - 1});
-    const int w_bias = (1 << ${W_data_size_byte - 1});
-
-    for (int in_idx = 0; in_idx < num_in; in_idx++)
-    {
 % if data_type_x[0] == "i":
-      unsigned X = (unsigned)(in_idx - in_bias);
+    const int max_x_mag = (1 << (${x_data_size_byte} - 1));
 % else:
-      unsigned X = (unsigned)in_idx;
+    const int max_x_mag = (1 << ${x_data_size_byte}) - 1;
 % endif
-      for (int w_idx = 0; w_idx < num_w; w_idx++)
+    const int num_in = max_x_mag + 1;
+
+    const int max_w_mag = (1 << (${W_data_size_byte} - 1));
+    const int num_w = max_w_mag + 1;
+
+    int32_t *lut_buffer = (int32_t *)((uint8_t *)l1_buffer + ${buffer_l1_all});
+
+    for (int x_mag = 0; x_mag < num_in; x_mag++)
+    {
+      for (int w_mag = 0; w_mag < num_w; w_mag++)
       {
-        unsigned W = (unsigned)(w_idx - w_bias);
+        int32_t prod = (int32_t)x_mag * (int32_t)w_mag;
+        lut_buffer[x_mag * num_w + w_mag] = prod;
 
-        int32_t prod = X * W;
-        ## if (prod < 0) prod = -prod;
-
-        lut_buffer[(in_idx) * num_w + (w_idx)] = prod;
 % if ULTRA_VERBOSE:
-        VERBOSE_PRINT("(%d, %d)  ", (in_idx) * num_w + (w_idx), prod);
+        VERBOSE_PRINT(
+            "(idx=%d, x_mag=%d, w_mag=%d, prod=%d)  ",
+            x_mag * num_w + w_mag,
+            x_mag,
+            w_mag,
+            prod
+        );
+% endif
       }
+
+% if ULTRA_VERBOSE:
       VERBOSE_PRINT("\n");
-% else:
-      }
 % endif
     }
   }

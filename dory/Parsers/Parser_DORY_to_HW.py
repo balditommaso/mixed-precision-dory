@@ -9,6 +9,7 @@ import copy
 from .HW_node import HW_node
 from dory.Utils.DORY_utils import Printer
 from dory.Parsers.DORY_node import DORY_node
+from dory.Hardware_targets.PULP.Common.Tiler import Tiler_PULP
 from typing import *
 
 
@@ -22,10 +23,11 @@ class Parser_DORY_to_HW:
         supported_nodes: List[str], 
         HW_description: Dict[str, Any], 
         config_file: Dict[str, Any], 
-        Tiler, 
+        Tiler: Tiler_PULP, 
         network_directory: str = None, 
         n_inputs: int = 1,
-        verify_checksum: bool = True
+        verify_checksum: bool = True,
+        num_cores: int = 8
     ):
         self.supported_nodes = supported_nodes
         self.DORY_Graph = graph
@@ -37,6 +39,7 @@ class Parser_DORY_to_HW:
         self.config_file = config_file
         self.n_inputs = n_inputs
         self.verify_checksum = verify_checksum
+        self.num_cores = num_cores
         HW_node.Tiler = Tiler
 
 
@@ -187,7 +190,11 @@ class Parser_DORY_to_HW:
             ######################## NEED A  FIX ####################################################
             #### OTHERWISE ONLY WEIGHT < L2/2 GO in L2 --> much more L3 tiling not needed############
             #########################################################################################
-            node.create_tiling_dimensions(prev if prev else node, self.config_file)
+            node.create_tiling_dimensions(
+                prev if prev else node, 
+                self.config_file,
+                num_cores=self.num_cores
+            )
             prev = node
 
     def renaming_weights(self):
@@ -198,10 +205,10 @@ class Parser_DORY_to_HW:
 
     def formatting_constant_parameters_tensors_and_activations(self):
         print("\nDORY Backend: Formatting constants and adding checksums")
-        for i, node in enumerate(self.DORY_Graph):            
-            node.add_checksum_w_integer()           
-            if self.verify_checksum and self.network_directory is not None:
-                node.add_checksum_activations_integer(self.network_directory, i, self.n_inputs)
+        # for i, node in enumerate(self.DORY_Graph):            
+        #     node.add_checksum_w_integer()           
+        #     if self.verify_checksum and self.network_directory is not None:
+        #         node.add_checksum_activations_integer(self.network_directory, i, self.n_inputs)
 
 
     def full_graph_parsing(self):

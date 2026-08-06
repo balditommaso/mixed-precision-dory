@@ -35,13 +35,14 @@ class onnx_manager_PULP(Parser_DORY_to_HW):
     # Used to manage the ONNX files. By now, supported Convolutions (PW and DW), Pooling, Fully Connected and Relu.
     def __init__(
         self, 
-        graph, 
-        config_file = None, 
-        config_file_dir = None, 
-        n_inputs = 1, 
-        verify_checksum = True,
-        L1_capacity = None,
-        L2_capacity = None
+        graph: list[HW_node.HW_node], 
+        config_file: dict = None, 
+        config_file_dir: str = None, 
+        n_inputs: int = 1, 
+        verify_checksum: bool = True,
+        num_cores: int = 8,
+        L1_capacity: int = None,
+        L2_capacity: int = None
     ):
         file_path = self.get_file_path()
         pattern_rewriter = self.get_pattern_rewriter()
@@ -55,6 +56,8 @@ class onnx_manager_PULP(Parser_DORY_to_HW):
             
         if L2_capacity is not None:
             HW_description["memory"]["L2"]["dimension"] = L2_capacity
+        
+        assert 1 <= num_cores <= 8
         
         try:
             db = HW_description['double_buffering']
@@ -86,7 +89,8 @@ class onnx_manager_PULP(Parser_DORY_to_HW):
             tiler, 
             network_directory, 
             n_inputs, 
-            verify_checksum
+            verify_checksum,
+            num_cores
         )
 
     def get_file_path(self):

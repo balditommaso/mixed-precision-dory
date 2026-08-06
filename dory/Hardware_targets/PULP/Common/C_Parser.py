@@ -29,9 +29,9 @@ class C_Parser_PULP(Parser_HW_to_C):
         app_directory: str = "./application", 
         n_inputs: int = 1,
         L1_capacity: int = None,
-        L2_capacity: int = None
+        L2_capacity: int = None,
+        num_cores: int = 8
     ):
-
         file_path = self.get_file_path()
         with open(os.path.join(file_path, "HW_description.json")) as f:
             HW_description = json.load(f)
@@ -58,8 +58,10 @@ class C_Parser_PULP(Parser_HW_to_C):
             perf_layer, 
             "Makefile", 
             app_directory, 
-            n_inputs
+            n_inputs,
+            num_cores
         )
+        
         try:
             db = HW_description['double_buffering']
         except KeyError:
@@ -67,6 +69,7 @@ class C_Parser_PULP(Parser_HW_to_C):
 
             db = 2
         self.double_buffering = db
+
 
     @staticmethod
     def _auto_precision_library(graph):
@@ -85,8 +88,10 @@ class C_Parser_PULP(Parser_HW_to_C):
                     precision_library = 'mixed-sw'
         return precision_library
 
+
     def node_backend_library(self, node):
         return self.precision_library
+
 
     def copy_backend_files(self, node, backend_library):
         if backend_library == "8bit":
@@ -124,8 +129,15 @@ class C_Parser_PULP(Parser_HW_to_C):
         for file in backendKernelsAdapter.get_inc_files():
             shutil.copy(file, self.inc_dir)
 
+
     def l2_template_keywords(self, node, backend_library):
-        return Layer2D_writer.print_template_layer(node, backend_library, double_buffering=self.double_buffering)
+        return Layer2D_writer.l2_layer_template(
+            node, 
+            backend_library, 
+            double_buffering=self.double_buffering,
+            num_cores=self.num_cores
+        )
+
 
     def mapping_layers_to_C_files(self):
         print("\nMapping the layers files to their templates and copying the kernels associated.")
@@ -142,7 +154,7 @@ class C_Parser_PULP(Parser_HW_to_C):
                         or \
                         (node.tiling_dimensions["L3"]["weights_dimensions"] != node.tiling_dimensions["L2"]["weights_dimensions"]) \
                 ):
-                tk = Layer2D_writer.print_template_layer_L3(node)
+                tk = Layer2D_writer.l3_layer_template(node, self.num_cores)
                 TemplateWriter.write(tk, {
                     os.path.join(self.src_dir, node.prefixed_name + ".c"): os.path.join(self.tmpl_dir, "layer_L3_c_template.c.t"),
                     os.path.join(self.inc_dir, node.prefixed_name + ".h"): os.path.join(self.tmpl_dir, "layer_L3_h_template.h.t")

@@ -12,7 +12,12 @@ from dory.Parsers.HW_node import HW_node
 
 
 class Parser_HW_to_C:
-    # Used to manage the ONNX files. By now, supported Convolutions (PW and DW), Pooling, Fully Connected and Relu.
+    """
+    Used to manage the generated source files. 
+    
+    Currently supporting: Convolutions (PW and DW), Pooling, Fully Connected and Relu.
+    """
+    
     def __init__(
         self, 
         graph: list, 
@@ -22,7 +27,8 @@ class Parser_HW_to_C:
         perf_layer: str, 
         save_string: str, 
         app_directory: str, 
-        n_inputs: int = 1
+        n_inputs: int = 1,
+        num_cores: int = 8
     ):
         self.HWgraph = graph
         self.HW_description = HW_description
@@ -35,11 +41,13 @@ class Parser_HW_to_C:
         self.src_dir_rel = "src"
         self.hex_dir_rel = "hex"
         self.n_inputs = n_inputs
+        self.num_cores = num_cores
 
 
     def adding_numbers_to_layers(self):
         for i, node in enumerate(self.HWgraph):
             node.name = node.name + str(i)
+
 
     def mapping_network_to_C_file(self):
         print("\nGenerating the .c file of the network.")
@@ -54,6 +62,7 @@ class Parser_HW_to_C:
             self.src_dir_rel
         )
 
+
     def mapping_makefile(self):
         print("\nGenerating the Makefile.")
         Makefile_writer.print_template_Makefile(
@@ -62,6 +71,7 @@ class Parser_HW_to_C:
             self.save_string_for_Makefile,
             self.app_directory
         )
+
 
     def l2_c_template(self, node, backend_library):
         if "Pool" in node.name:
@@ -77,6 +87,7 @@ class Parser_HW_to_C:
         else:
             return "layer_L2_c_conv_template.c.t"
 
+
     def l2_template_mapping(self, node, backend_library):
         tmpl_c = self.l2_c_template(node, backend_library)
         return {
@@ -84,11 +95,14 @@ class Parser_HW_to_C:
             os.path.join(self.inc_dir, node.prefixed_name + ".h"): os.path.join(self.tmpl_dir, "layer_L2_h_template.h.t"),
         }
 
+
     def mapping_layers_to_C_files(self):
         print("\nTo be implemented in the target backend")
 
+
     def copy_backend_files(self, node):
         print("\nTo be implemented in the target backend")
+
 
     def copy_utils_files(self):
         print("\nCopying Utils.")
@@ -99,29 +113,75 @@ class Parser_HW_to_C:
             elif file_to_copy[-1] == 'h':
                 os.system('cp -L "{}" {}'.format(file_to_copy, self.inc_dir))
 
+
     def create_hex_weights_files(self):
         print("\nGenerating .hex weight files.")
-        for i, node in enumerate(self.HWgraph):
-            constants = [0, 0, 0, 0]
+
+        os.makedirs(self.hex_dir, exist_ok=True)
+
+        for node_index, node in enumerate(self.HWgraph):
+            constants = [None, None, None, None]
+
             for name in node.constant_names:
-                if "weight" in name:
+                lowered_name = name.lower()
+
+                if "weight" in lowered_name:
                     constants[0] = name
-                elif "bias" in name:
+                elif "bias" in lowered_name:
                     constants[1] = name
-                elif "k" == name:
+                elif name == "k":
                     constants[2] = name
-                elif "l" == name:
+                elif name == "l":
                     constants[3] = name
-            weights = np.asarray([])
-            for i in np.arange(4):
-                if constants[i] != 0:
-                    weights = np.concatenate((weights, node.__dict__[constants[i]]["value"]))
-            while len(weights) % 4 != 0:
-                weights = np.concatenate((weights, np.asarray([0])))
-            if weights.shape[0] != 0:
-                string_layer = node.prefixed_name + "_weights.hex"
-                save_s = os.path.join(self.hex_dir, string_layer)
-                weights.astype('uint8').tofile(save_s)
+
+            flattened_values = []
+
+            for key in constants:
+                if key is None:
+                    continue
+
+                constant_data = node.__dict__.get(key)
+
+                if constant_data is None or "value" not in constant_data:
+                    raise KeyError(
+                        f"Constant {key!r} is missing from node "
+                        f"{node.prefixed_name!r}"
+                    )
+
+                value = np.asarray(constant_data["value"])
+
+                if value.size == 0:
+                    continue
+
+                # Required because weights can be 4D while bias is 1D.
+                flattened_values.append(value.reshape(-1))
+
+            if not flattened_values:
+                continue
+
+            weights = np.concatenate(flattened_values)
+
+            # Pad the total number of elements to a multiple of four.
+            padding = (-weights.size) % 4
+
+            if padding:
+                weights = np.pad(
+                    weights,
+                    pad_width=(0, padding),
+                    mode="constant",
+                    constant_values=0,
+                )
+
+            output_name = f"{node.prefixed_name}_weights.hex"
+            output_path = os.path.join(self.hex_dir, output_name)
+
+            weights.astype(np.uint8).tofile(output_path)
+
+            print(
+                f"Saved {output_path}: "
+                f"{weights.size} values, {weights.nbytes} source bytes"
+            )
+
 
     def create_hex_input(self):
         print("\nGenerating .hex input file.")
@@ -141,8 +201,8 @@ class Parser_HW_to_C:
                 x_in = x_in.flatten()
             except FileNotFoundError:
                 print(f"========= WARNING ==========\n" \
-                      f"Input file {os.path.join(self.network_directory, 'input.txt')} not found;\n" \
-                       "generating random inputs!"
+                    f"Input file {os.path.join(self.network_directory, 'input.txt')} not found;\n" \
+                    "generating random inputs!"
                 )
                 np.random.seed(42)
                 x_in = np.random.randint(
@@ -158,29 +218,36 @@ class Parser_HW_to_C:
             string_layer = prefix + "inputs.hex" if self.n_inputs == 1 else f"{prefix}inputs_{in_idx}.hex"
             save_s = os.path.join(self.hex_dir, string_layer)
             x_in.astype('uint8').tofile(save_s)
+            
 
     @property
     def src_dir(self):
         return os.path.join(self.app_directory, self.src_dir_rel)
 
+
     @property
     def inc_dir(self):
         return os.path.join(self.app_directory, self.inc_dir_rel)
+
 
     @property
     def hex_dir(self):
         return os.path.join(self.app_directory, self.hex_dir_rel)
 
+
     def get_file_path(self):
         raise NotImplementedError("To be implemented by child class!")
+
 
     @property
     def tmpl_dir(self):
         return os.path.realpath(os.path.join(self.get_file_path(), 'Templates/layer_templates'))
 
+
     @property
     def utils_files_dir(self):
         return os.path.realpath(os.path.join(self.get_file_path(), 'Utils_files'))
+
 
     def full_graph_parsing(self):
         print("#####################################################")

@@ -396,16 +396,107 @@ void ${prefix}network_run_cluster(void *args)
   {
     *((uint8_t*)(l2_final_output + i)) = *((uint8_t*)(L2_output + i));
   }
-## #ifdef VERBOSE
-##   // print final output (assuming 4 bytes per logit = int32_t)
-##   int num_outputs = activations_out_size[${len(DORY_HW_graph)-1}] / ${int(DORY_HW_graph[-1].output_activation_bits / 8)};
-##   int32_t *out = (int32_t *)l2_final_output;
+  
+  // Copy the final network output into the caller-provided L2 buffer.
+  memcpy(
+      l2_final_output,
+      L2_output,
+      activations_out_size[${len(DORY_HW_graph) - 1}]
+  );
 
-##   printf("\nFinal output (%d logits):\n", num_outputs);
-##   for (int i = 0; i < num_outputs; i++)
-##   {
-##     printf("%ld ", (long)out[i]);
-##   }
-##   printf("\n");
-## #endif
+<%
+final_node = DORY_HW_graph[-1]
+
+final_bits = int(final_node.output_activation_bits)
+
+final_type = getattr(
+    final_node,
+    "output_activation_type",
+    "int",
+)
+final_signed = final_type == "int"
+
+final_channels = int(final_node.output_channels)
+final_h = int(final_node.output_dimensions[0])
+final_w = int(final_node.output_dimensions[1])
+num_outputs = final_channels * final_h * final_w
+%>\
+
+  printf("\nFinal output:\n");
+
+% if final_bits == 2:
+  {
+    const uint8_t *packed_output =
+        (const uint8_t *)l2_final_output;
+
+    for (int i = 0; i < ${num_outputs}; i++)
+    {
+      const int byte_index = i >> 2;
+      const int shift = (i & 3) * 2;
+      const uint8_t raw =
+          (packed_output[byte_index] >> shift) & 0x3;
+
+% if final_signed:
+      const int decoded =
+          (raw & 0x2) ? ((int)raw - 4) : (int)raw;
+% else:
+      const int decoded = (int)raw;
+% endif
+
+      printf("%d ", decoded);
+    }
+  }
+
+% elif final_bits == 4:
+  {
+    const uint8_t *packed_output =
+        (const uint8_t *)l2_final_output;
+
+    for (int i = 0; i < ${num_outputs}; i++)
+    {
+      const int byte_index = i >> 1;
+      const int shift = (i & 1) * 4;
+      const uint8_t raw =
+          (packed_output[byte_index] >> shift) & 0xF;
+
+% if final_signed:
+      const int decoded =
+          (raw & 0x8) ? ((int)raw - 16) : (int)raw;
+% else:
+      const int decoded = (int)raw;
+% endif
+
+      printf("%d ", decoded);
+    }
+  }
+
+% elif final_bits == 8:
+  {
+    const ${"int8_t" if final_signed else "uint8_t"} *final_output =
+        (const ${"int8_t" if final_signed else "uint8_t"} *)
+            l2_final_output;
+
+    for (int i = 0; i < ${num_outputs}; i++)
+    {
+      printf("%d ", (int)final_output[i]);
+    }
+  }
+
+% elif final_bits == 16:
+  {
+    const ${"int16_t" if final_signed else "uint16_t"} *final_output =
+        (const ${"int16_t" if final_signed else "uint16_t"} *)
+            l2_final_output;
+
+    for (int i = 0; i < ${num_outputs}; i++)
+    {
+      printf("%d ", (int)final_output[i]);
+    }
+  }
+
+% else:
+#error "Unsupported final output precision"
+% endif
+
+  printf("\n");
 }
