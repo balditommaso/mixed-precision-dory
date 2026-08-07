@@ -122,7 +122,6 @@ class Tiler_Conv2D_PULP(PULPTilerCommon):
         strides = self.HW_node.strides
         group = self.HW_node.group
         pads = self.HW_node.pads
-        costant_count = self._bn_constant_count()
         
         
         for strategy in range(4):
@@ -133,6 +132,20 @@ class Tiler_Conv2D_PULP(PULPTilerCommon):
             
             tile_n_out = solver.IntVar(1, out_ch, "tile_n_out")
             tile_h_out = solver.IntVar(1, out_dim[0], "tile_h_out")
+            is_branch_output = bool(
+                getattr(
+                    self.HW_node,
+                    "branch_out",
+                    getattr(self.HW_node, "branch_output", 0),
+                )
+            )
+            is_branch_change = bool(
+                getattr(self.HW_node, "branch_change", 0)
+            )
+
+            if is_branch_output or is_branch_change:
+                # The network template saves these tensors from L2 to external RAM.
+                solver.Add(tile_h_out == out_dim[0])
             zero = solver.IntVar(0, 0, "zero")
 
             if not input_l3:
@@ -938,23 +951,25 @@ class Tiler_Conv2D_PULP(PULPTilerCommon):
 
 
     def _input_from_l3(self) -> bool:
-        """
-        Infer whether the current input must be fetched from L3.
-        """
-        # TODO ``previous_HW_node`` is
-        # not necessarily the producer of the current input in a branched graph.
-        # The correct design is to query the producer of the input tensor.
+        if self.previous_HW_node is None:
+            self.HW_node.L3_input = 0
+            return False
+
+        if getattr(self.previous_HW_node, "branch_change", 0):
+            self.HW_node.L3_input = 0
+            return False
+
         l3_out = self.previous_HW_node.tiling_dimensions["L3"][
             "output_dimensions"
         ]
         l2_out = self.previous_HW_node.tiling_dimensions["L2"][
             "output_dimensions"
         ]
+
         comes_from_l3 = l2_out is not None and l3_out != l2_out
-        if comes_from_l3:
-            self.HW_node.L3_input = 1
+        self.HW_node.L3_input = int(comes_from_l3)
         return comes_from_l3
-    
+        
 
     def _available_l1_memory(self) -> int:
         hw = self.HW_node.HW_description

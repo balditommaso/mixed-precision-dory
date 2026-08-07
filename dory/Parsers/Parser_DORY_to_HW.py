@@ -48,7 +48,9 @@ class Parser_DORY_to_HW:
         for i, node in enumerate(self.DORY_Graph):
             string_matching, indexes = self.pattern_matching(node, i)
             if isinstance(string_matching, str):
-                self.DORY_Graph = self.Pattern_rewriter(self.DORY_Graph).execute(string_matching, indexes)
+                self.DORY_Graph = self.Pattern_rewriter(
+                    self.DORY_Graph
+                ).execute(string_matching, indexes)
 
 
     def check_graph(self):
@@ -112,40 +114,71 @@ class Parser_DORY_to_HW:
 
     def update_branches_graph(self):
         print("\nDORY generic Frontend. Updating branches pointers.")
-        # updating branch in/out connections
-        for i, node in enumerate(self.DORY_Graph):
-            if len(node.input_indexes)>1:
-                node.add_existing_parameter("branch_in", 1)
-            else:
-                node.add_existing_parameter("branch_in", 0)
-            node_out = 0
-            for nodes_scan in self.DORY_Graph:
-                if node.output_index in nodes_scan.input_indexes:
-                    node_out+=1
-            if node_out > 1:
-                node.add_existing_parameter("branch_out", 1)
-            else:
-                node.add_existing_parameter("branch_out", 0)
+        
+        graph = self.DORY_Graph
+        
+        for node in graph:
+            node.add_existing_parameter(
+                "branch_in", 
+                1 if len(node.input_indexes) > 1 else 0
+            )
+            
+            num_consumers = 0
+            
+            for consumer in graph:
+                if node.output_index in consumer.input_indexes:
+                    num_consumers += 1
+                    
+            node.add_existing_parameter(
+                "branch_out",
+                1 if num_consumers > 1 else 0
+            )
             node.add_existing_parameter("branch_change", 0)
             node.add_existing_parameter("branch_last", 0)
-            for nodes_scan in self.DORY_Graph:
-                if node.output_index in nodes_scan.input_indexes and len(nodes_scan.input_indexes)>1:
-                    for j, nodes_scan_2 in enumerate(self.DORY_Graph):
-                        if nodes_scan_2.output_index in nodes_scan.input_indexes and nodes_scan_2.output_index != node.output_index:
-                            if nodes_scan_2.branch_out != 1 and node.branch_out != 1:
-                                if(i < j):
-                                    node.add_existing_parameter("branch_change", 1)
-                                    nodes_scan_2.add_existing_parameter("branch_last", 0)
-                                    break
-                                else:
-                                    nodes_scan_2.add_existing_parameter("branch_change", 1)  
-                                    node.add_existing_parameter("branch_last", 1)   
-                                    break
-                            else:
-                                if(i < j):
-                                    node.add_existing_parameter("branch_last", 1)
-                                else:
-                                    nodes_scan_2.add_existing_parameter("branch_last", 1)  
+            
+        producers = {
+            node.output_index: (index, node)
+            for index, node in enumerate(graph)
+        }
+        
+        for merge_node in graph:
+
+            if merge_node.branch_in != 1:
+                continue
+
+            input_producers = []
+
+            for input_index in merge_node.input_indexes:
+                if input_index not in producers:
+                    continue
+
+                producer_index, producer_node = producers[input_index]
+                input_producers.append(
+                    (producer_index, producer_node)
+                )
+
+            if len(input_producers) != 2:
+                continue
+
+            input_producers.sort(key=lambda x: x[0])
+
+            _, early_producer = input_producers[0]
+            _, late_producer = input_producers[1]
+
+            if (
+                early_producer.branch_out != 1
+                and late_producer.branch_out != 1
+            ):
+                early_producer.add_existing_parameter(
+                    "branch_change", 1
+                )
+                late_producer.add_existing_parameter(
+                    "branch_last", 1
+                )
+            else:
+                early_producer.add_existing_parameter(
+                    "branch_last", 1
+                )
 
 
     def update_dimensions_graph(self):
@@ -201,6 +234,110 @@ class Parser_DORY_to_HW:
         print("\nDORY Backend: Renaming Weights tensors.")
         for i, node in enumerate(self.DORY_Graph):            
             node.rename_weights()           
+            
+            
+    def reorder_graph_branch_contiguous(self):
+        """
+        Reorder self.DORY_Graph in a valid topological execution order such
+        that, at a fork, one branch is completed before starting the sibling.
+
+        The shorter branch is executed first. This matches the assumptions
+        behind DORY's branch_change / branch_last runtime bookkeeping.
+        """
+
+        graph = self.DORY_Graph
+        n = len(graph)
+
+        if n <= 1:
+            return
+
+        producer_of = {
+            self.str(node.output_index): i
+            for i, node in enumerate(graph)
+        }
+
+        predecessors = {i: set() for i in range(n)}
+        successors = {i: set() for i in range(n)}
+
+        for i, node in enumerate(graph):
+            for input_index in node.input_indexes:
+                producer = producer_of.get(
+                    self.str(input_index)
+                )
+
+                if producer is None:
+                    continue
+
+                predecessors[i].add(producer)
+                successors[producer].add(i)
+
+        remaining_successors = {
+            i: len(successors[i])
+            for i in range(n)
+        }
+
+        depth = {}
+        stack = [i for i in range(n) if remaining_successors[i] == 0]
+
+        for i in stack:
+            depth[i] = 0
+
+        while stack:
+            current = stack.pop()
+
+            for predecessor in predecessors[current]:
+                remaining_successors[predecessor] -= 1
+
+                if remaining_successors[predecessor] == 0:
+                    depth[predecessor] = 1 + max(
+                        (
+                            depth[successor]
+                            for successor in successors[predecessor]
+                        ),
+                        default=0,
+                    )
+                    stack.append(predecessor)
+
+        if len(depth) != n:
+            raise ValueError(
+                "Cannot compute DORY execution order: "
+                "graph contains a cycle or invalid dependencies."
+            )
+
+        in_degree = {i: len(predecessors[i]) for i in range(n)}
+
+        ready = [i for i in range(n) if in_degree[i] == 0]
+
+        ready.sort(key=lambda i: (depth[i], i), reverse=True)
+
+        order = []
+
+        while ready:
+            current = ready.pop()
+            order.append(current)
+
+            newly_ready = []
+
+            for successor in successors[current]:
+                in_degree[successor] -= 1
+
+                if in_degree[successor] == 0:
+                    newly_ready.append(successor)
+
+            newly_ready.sort(
+                key=lambda i: (depth[i], i),
+                reverse=True,
+            )
+
+            ready.extend(newly_ready)
+
+        if len(order) != n:
+            raise ValueError(
+                "Could not generate complete branch-contiguous "
+                "DORY execution order."
+            )
+
+        self.DORY_Graph = [graph[i] for i in order]
 
 
     def formatting_constant_parameters_tensors_and_activations(self):
@@ -218,6 +355,7 @@ class Parser_DORY_to_HW:
         print("#####################################################")
         self.Printer_Frontend.print_json_from_DORY_graph("00_DORY_HW_input_graph", self.DORY_Graph)
         self.Printer_Frontend.print_onnx_from_DORY_graph("00_DORY_HW_input_graph", self.DORY_Graph)
+        self.reorder_graph_branch_contiguous()
         self.mapping_to_HW_nodes()
         self.Printer_Frontend.print_json_from_DORY_graph("01_DORY_HW_graph_raw", self.DORY_Graph)
         self.Printer_Frontend.print_onnx_from_DORY_graph("01_DORY_HW_graph_raw", self.DORY_Graph)
@@ -244,4 +382,3 @@ class Parser_DORY_to_HW:
         self.check_graph()
         self.check_parameters()
         return self.DORY_Graph
-
