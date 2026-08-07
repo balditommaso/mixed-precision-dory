@@ -243,29 +243,15 @@ void ${func_name}(void *args)
     const int max_w_mag = (1 << (${W_data_size_byte} - 1));
     const int num_w = max_w_mag + 1;
 
-    int32_t *lut_buffer = (int32_t *)((uint8_t *)l1_buffer + ${buffer_l1_all});
+    int16_t *lut_buffer = (int32_t *)((uint8_t *)l1_buffer + ${buffer_l1_all});
 
     for (int x_mag = 0; x_mag < num_in; x_mag++)
     {
       for (int w_mag = 0; w_mag < num_w; w_mag++)
       {
         int32_t prod = (int32_t)x_mag * (int32_t)w_mag;
-        lut_buffer[x_mag * num_w + w_mag] = prod;
-
-% if ULTRA_VERBOSE:
-        VERBOSE_PRINT(
-            "(idx=%d, x_mag=%d, w_mag=%d, prod=%d)  ",
-            x_mag * num_w + w_mag,
-            x_mag,
-            w_mag,
-            prod
-        );
-% endif
+        lut_buffer[x_mag * num_w + w_mag] = (int16_t)prod;
       }
-
-% if ULTRA_VERBOSE:
-      VERBOSE_PRINT("\n");
-% endif
     }
   }
 % endif

@@ -37,7 +37,7 @@ def _lut_memory_bytes(node: HW_node, safety_margin: int = 8) -> int:
 
     # LUT kernels index signed weights by magnitude: 0 .. 2^(bits-1).
     weight_entries = (1 << (weight_bits - 1)) + 1
-    return input_entries * weight_entries * 4 + int(safety_margin)
+    return input_entries * weight_entries * 2 + int(safety_margin)
 
 
 def _standard_conv_im2col_bytes(

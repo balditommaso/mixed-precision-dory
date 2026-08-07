@@ -52,34 +52,61 @@ class HW_node(DORY_node):
             self.split_ints = False
 
 
-    def create_tiling_dimensions(self, previous_node: DORY_node, config_file: dict, num_cores: int = 8):
-        for level in range(self.HW_description["memory"]["levels"], 1 ,-1):
+    def create_tiling_dimensions(
+        self,
+        previous_node: DORY_node,
+        config_file: dict,
+        num_cores: int = 8,
+        input_nodes=None,
+    ) -> None:
+        for level in range(
+            self.HW_description["memory"]["levels"], 
+            1 ,
+            -1
+        ):
             weights_dim, input_dims, output_dims = self.Tiler(
-                self, 
-                previous_node, 
+                self,
+                previous_node,
                 config_file["code reserved space"],
-                num_cores=num_cores
+                num_cores=num_cores,
+                input_HW_nodes=input_nodes,
             ).get_tiling(level)
             
             self.tiling_dimensions[f"L{level-1}"]["input_dimensions"] = input_dims
             self.tiling_dimensions[f"L{level-1}"]["output_dimensions"] = output_dims
             if "Convolution" in self.name or "FullyConnected" in self.name:
                 self.tiling_dimensions[f"L{level-1}"]["weights_dimensions"] = weights_dim
-                #groups = self.group if self.group < weights_dim[0] else
-                #weights_dim[0] # not really correct: If we tile a grouped
-                #conv, the effective number of groups is the higher of the two
-                #channel numbers
-                groups = self.group if all(self.group <= d for d in weights_dim) else max(weights_dim)
 
-                self.tiling_dimensions[f"L{level-1}"]["weight_memory"] = np.prod(weights_dim) / groups * np.prod(self.kernel_shape) * self.weight_bits / 8
+                groups = (
+                    self.group 
+                    if all(self.group <= d for d in weights_dim) 
+                    else max(weights_dim)
+                )
+
+                self.tiling_dimensions[f"L{level-1}"]["weight_memory"] = (
+                    np.prod(weights_dim) 
+                    / groups 
+                    * np.prod(self.kernel_shape) 
+                    * self.weight_bits 
+                    / 8
+                )
+                
                 lut_dim = 0
                 if self.implementation == "lut" and (level - 1) == 1:
-                    lut_dim = 2 ** (self.weight_bits + self.input_activation_bits) * self.bias_bits
+                    lut_dim = (
+                        2 ** (
+                            self.weight_bits 
+                            + self.input_activation_bits
+                            ) 
+                        * self.bias_bits
+                    )
                 self.tiling_dimensions[f"L{level-1}"]["lut_memory"] = lut_dim
             else:
                 self.tiling_dimensions[f"L{level-1}"]["weight_memory"] = 0
+                
             constants_memory = 0
             bias_memory = 0
+            
             for name in self.constant_names:
                 if name in ["l","k"]:
                     constants_memory += weights_dim[0] * self.constant_bits / 8

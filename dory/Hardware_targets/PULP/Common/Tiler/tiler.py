@@ -6,21 +6,35 @@ from dory.Parsers.HW_node import HW_node
 
 
 class Tiler_PULP:
-    # Class to generate the Tiling of the layer.
     def __init__(
-        self, 
-        HW_node: HW_node, 
-        previous_HW_node: HW_node, 
-        code_reserved_space: int, 
+        self,
+        HW_node: HW_node,
+        previous_HW_node: HW_node,
+        code_reserved_space: int,
         double_buffering: int = 2,
-        num_cores: int = 8
+        num_cores: int = 8,
+        input_HW_nodes=None,
     ) -> None:
+
         self.HW_node = HW_node
+
+        # Keep this until all tilers have been migrated.
         self.previous_HW_node = previous_HW_node
+
+        if input_HW_nodes is None:
+            self.input_HW_nodes = (
+                []
+                if previous_HW_node is None
+                else [previous_HW_node]
+            )
+        else:
+            self.input_HW_nodes = list(input_HW_nodes)
+
         self.code_reserved_space = code_reserved_space
         self.double_buffering = double_buffering
-        self.n_memory_levels = HW_node.HW_description['memory']['levels']
+        self.n_memory_levels = HW_node.HW_description["memory"]["levels"]
         self.num_cores = num_cores
+
 
     def get_tiling(self, level):
         # This function is used to create the tiling of either a convolutional layer or
@@ -34,3 +48,5 @@ class Tiler_PULP:
         else:
             print("Not supported Layer.")
             return None
+        
+        

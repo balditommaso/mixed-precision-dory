@@ -214,21 +214,35 @@ class Parser_DORY_to_HW:
 
 
     def tiling(self):
-        ####################################################################################
-        ###### SECTION 3: PARSING OF EACH LAYER INDEPENDENT. TILING + LAYER CREATION  ######
-        ####################################################################################
         print("\nInsert tiling parameters per layer inside graph nodes")
-        prev = None
+
+        producer_map = {
+            str(node.output_index): node
+            for node in self.DORY_Graph
+        }
+
         for node in self.DORY_Graph:
-            ######################## NEED A  FIX ####################################################
-            #### OTHERWISE ONLY WEIGHT < L2/2 GO in L2 --> much more L3 tiling not needed############
-            #########################################################################################
-            node.create_tiling_dimensions(
-                prev if prev else node, 
-                self.config_file,
-                num_cores=self.num_cores
+            input_nodes = []
+
+            for input_index in node.input_indexes:
+                producer = producer_map.get(str(input_index))
+
+                if producer is not None:
+                    input_nodes.append(producer)
+
+            primary_node = (
+                input_nodes[0]
+                if input_nodes
+                else node
             )
-            prev = node
+
+            node.create_tiling_dimensions(
+                primary_node,
+                self.config_file,
+                num_cores=self.num_cores,
+                input_nodes=input_nodes,
+            )
+        
 
     def renaming_weights(self):
         print("\nDORY Backend: Renaming Weights tensors.")
@@ -252,7 +266,7 @@ class Parser_DORY_to_HW:
             return
 
         producer_of = {
-            self.str(node.output_index): i
+            str(node.output_index): i
             for i, node in enumerate(graph)
         }
 
@@ -262,7 +276,7 @@ class Parser_DORY_to_HW:
         for i, node in enumerate(graph):
             for input_index in node.input_indexes:
                 producer = producer_of.get(
-                    self.str(input_index)
+                    str(input_index)
                 )
 
                 if producer is None:

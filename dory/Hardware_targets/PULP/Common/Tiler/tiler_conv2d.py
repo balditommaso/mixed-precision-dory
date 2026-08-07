@@ -109,8 +109,8 @@ class Tiler_Conv2D_PULP(PULPTilerCommon):
         This is therefore not one global optimization across all strategies.
         """
         l2_memory = self._available_l2_memory()
-        input_l3 = self._input_from_l3()    # TODO: bug
-        
+        input_l3 = self._input_from_l3()    
+                
         if self._full_layer_l2_bytes() <= l2_memory and not input_l3:
             return self._full_layer_tile()
         
@@ -951,25 +951,32 @@ class Tiler_Conv2D_PULP(PULPTilerCommon):
 
 
     def _input_from_l3(self) -> bool:
-        if self.previous_HW_node is None:
+        producer = (
+            self.input_HW_nodes[0]
+            if self.input_HW_nodes
+            else None
+        )
+
+        if producer is None:
             self.HW_node.L3_input = 0
             return False
 
-        if getattr(self.previous_HW_node, "branch_change", 0):
-            self.HW_node.L3_input = 0
-            return False
-
-        l3_out = self.previous_HW_node.tiling_dimensions["L3"][
-            "output_dimensions"
-        ]
-        l2_out = self.previous_HW_node.tiling_dimensions["L2"][
+        l3_out = producer.tiling_dimensions["L3"][
             "output_dimensions"
         ]
 
-        comes_from_l3 = l2_out is not None and l3_out != l2_out
+        l2_out = producer.tiling_dimensions["L2"][
+            "output_dimensions"
+        ]
+
+        comes_from_l3 = (
+            l2_out is not None
+            and l3_out != l2_out
+        )
+
         self.HW_node.L3_input = int(comes_from_l3)
         return comes_from_l3
-        
+                
 
     def _available_l1_memory(self) -> int:
         hw = self.HW_node.HW_description
@@ -1211,7 +1218,7 @@ class Tiler_Conv2D_PULP(PULPTilerCommon):
         weight_entries = (1 << (weight_bits - 1)) + 1
         entries = input_entries * weight_entries
 
-        return entries * 4  
+        return entries * 2
     
     
     def _precision_parallelism(self) -> int:
