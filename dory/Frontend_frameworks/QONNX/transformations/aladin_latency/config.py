@@ -144,6 +144,8 @@ class AutoSpecConfig:
     add_input1_correlation: float = 0.25
     add_input2_correlation: float = 0.25
     add_output_correlation: float = 0.10
+    lut_correlation: float = 0.75
+    lut_effective_banks: int = 4
     default_team_barriers_outside_kernel: int = 4
     default_team_barriers_inside_pulp_conv: int = 1
     default_dma_allocations: int = 1
@@ -247,6 +249,8 @@ class KernelCostModel:
     matmul_call_overhead_cycles: float = 12.0
     odd_pixel_channel_overhead_cycles: float = 3.0
     output_pixel_loop_overhead_cycles: float = 4.0
+    lut_lookup_issue_cycles: float = 1.0
+    lut_accumulate_cycles: float = 0.25
 
     # Two-pass max-pooling source model. Costs are per scalar channel value;
     # compare-and-replace is typically vectorized inside the helper routine.

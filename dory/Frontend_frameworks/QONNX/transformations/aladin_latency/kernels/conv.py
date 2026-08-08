@@ -253,31 +253,211 @@ def estimate_grouped_compute_fallback(
     }
 
 
-def estimate_compute(kernel: KernelComputeSpec, hw_spec: Mapping[str, Any], execution: ExecutionConfig, cost: KernelCostModel, bank_model: L1BankModel, patterns: Sequence[BankAccessPattern], regions: Mapping[str, L1RegionSpec], pessimism: PessimismConfig, peak_key: str, partition_mode: PartitionMode, calibration_scale: float=1.0) -> Dict[str, Any]:
+def estimate_compute(
+    kernel: KernelComputeSpec,
+    hw_spec: Mapping[str, Any],
+    execution: ExecutionConfig,
+    cost: KernelCostModel,
+    bank_model: L1BankModel,
+    patterns: Sequence[BankAccessPattern],
+    regions: Mapping[str, L1RegionSpec],
+    pessimism: PessimismConfig,
+    peak_key: str,
+    partition_mode: PartitionMode,
+    calibration_scale: float = 1.0,
+) -> Dict[str, Any]:
     if kernel.is_depthwise:
         return estimate_depthwise_compute(
-            kernel, hw_spec, execution, cost, bank_model, patterns, regions,
-            pessimism, peak_key, calibration_scale
+            kernel,
+            hw_spec,
+            execution,
+            cost,
+            bank_model,
+            patterns,
+            regions,
+            pessimism,
+            peak_key,
+            calibration_scale,
         )
+
     if kernel.is_grouped:
         return estimate_grouped_compute_fallback(
-            kernel, kernel.total_macs, hw_spec, execution, pessimism,
-            peak_key, calibration_scale
+            kernel,
+            kernel.total_macs,
+            hw_spec,
+            execution,
+            pessimism,
+            peak_key,
+            calibration_scale,
         )
-    work = partition_kernel_work(kernel, execution.num_cores, partition_mode)
-    active_cores = sum((item.active for item in work))
-    peak_per_core = get_peak_mac_per_cycle_per_core(hw_spec, peak_key, kernel)
-    core_results: List[Dict[str, Any]] = []
+
+    implementation = str(
+        getattr(kernel, "implementation", "") or ""
+    ).lower()
+
+    is_lut = implementation == "lut"
+    work = partition_kernel_work(
+        kernel,
+        execution.num_cores,
+        partition_mode,
+    )
+
+    active_cores = sum(item.active for item in work)
+
+    peak_per_core = (
+        get_peak_mac_per_cycle_per_core(
+            hw_spec,
+            peak_key,
+            kernel,
+        )
+    )
+
+    core_results = []
+
     for item in work:
         if not item.active:
-            core_results.append({'core_id': item.core_id, 'active': False, 'output_pixels': 0, 'macs': 0, 'mac_lower_bound_cycles': 0, 'operation_counts': {}, 'base_components': {}, 'bank_model': {}, 'expected_cycles': 0, 'pessimistic_cycles': 0})
+            core_results.append(
+                {
+                    "core_id": item.core_id,
+                    "active": False,
+                    "output_pixels": 0,
+                    "macs": 0,
+                    "lut_lookups": 0,
+                    "mac_lower_bound_cycles": 0,
+                    "operation_counts": {},
+                    "base_components": {},
+                    "bank_model": {},
+                    "expected_cycles": 0,
+                    "pessimistic_cycles": 0,
+                }
+            )
             continue
-        counts = count_pulp_nn_operations_for_core(kernel, item)
-        components = operation_counts_to_cycles(counts, cost, item.output_pixels)
-        bank_result = apply_bank_penalties(components, patterns, regions, bank_model, execution, active_cores, pessimism)
-        expected_cycles = ceil(bank_result['cycles_expected_before_safety'] * calibration_scale)
-        pessimistic_cycles = ceil(bank_result['cycles_pessimistic_before_safety'] * pessimism.kernel_safety_factor * calibration_scale)
-        core_results.append({'core_id': item.core_id, 'active': True, 'output_pixels': item.output_pixels, 'macs': item.macs, 'output_range': {'y': (item.output_y_start, item.output_y_stop), 'x': (item.output_x_start, item.output_x_stop)}, 'mac_lower_bound_cycles': ceil(item.macs / peak_per_core), 'operation_counts': counts, 'base_components': components, 'bank_model': bank_result, 'expected_cycles': expected_cycles, 'pessimistic_cycles': pessimistic_cycles})
-    critical_expected = max(core_results, key=lambda item: item['expected_cycles'])
-    critical_pessimistic = max(core_results, key=lambda item: item['pessimistic_cycles'])
-    return {'model': 'source_operations_plus_probabilistic_banks', 'kernel_name': kernel.name, 'requested_cores': execution.num_cores, 'active_cores': active_cores, 'peak_mac_per_cycle_per_core': peak_per_core, 'partition_mode': partition_mode, 'mac_lower_bound_cycles': max((item['mac_lower_bound_cycles'] for item in core_results)), 'expected_cycles': critical_expected['expected_cycles'], 'pessimistic_cycles': critical_pessimistic['pessimistic_cycles'], 'critical_core_expected': critical_expected['core_id'], 'critical_core_pessimistic': critical_pessimistic['core_id'], 'core_results': core_results, 'calibration_scale': calibration_scale}
+
+        counts = (
+            count_pulp_nn_operations_for_core(kernel, item)
+        )
+
+        components = operation_counts_to_cycles(
+            counts,
+            cost,
+            item.output_pixels,
+        )
+
+        lookup_ops = 0
+
+        if is_lut:
+            lookup_ops = int(item.macs)
+
+            components["arithmetic"] = (lookup_ops * cost.lut_accumulate_cycles)
+
+            components["lut_reads"] = (lookup_ops * cost.lut_lookup_issue_cycles)
+
+            components["base_total"] = sum(
+                value
+                for key, value in components.items()
+                if key != "base_total"
+            )
+
+        bank_result = apply_bank_penalties(
+            components,
+            patterns,
+            regions,
+            bank_model,
+            execution,
+            active_cores,
+            pessimism,
+        )
+
+        expected_cycles = ceil(
+            bank_result[
+                "cycles_expected_before_safety"
+            ]
+            * calibration_scale
+        )
+
+        pessimistic_cycles = ceil(
+            bank_result[
+                "cycles_pessimistic_before_safety"
+            ]
+            * pessimism.kernel_safety_factor
+            * calibration_scale
+        )
+
+        core_results.append(
+            {
+                "core_id": item.core_id,
+                "active": True,
+                "implementation": ("lut" if is_lut else "mac"),
+                "output_pixels": item.output_pixels,
+                "macs": item.macs,
+                "lut_lookups": lookup_ops,
+                "output_range": {
+                    "y": (
+                        item.output_y_start,
+                        item.output_y_stop,
+                    ),
+                    "x": (
+                        item.output_x_start,
+                        item.output_x_stop,
+                    ),
+                },
+                "mac_lower_bound_cycles": (
+                    0
+                    if is_lut
+                    else ceil(item.macs / peak_per_core)
+                ),
+                "operation_counts": counts,
+                "base_components": components,
+                "bank_model": bank_result,
+                "expected_cycles": expected_cycles,
+                "pessimistic_cycles": pessimistic_cycles,
+            }
+        )
+
+    critical_expected = max(
+        core_results,
+        key=lambda item:
+            item["expected_cycles"],
+    )
+
+    critical_pessimistic = max(
+        core_results,
+        key=lambda item:
+            item["pessimistic_cycles"],
+    )
+    if is_lut:
+        lower_bound = 0
+    else:
+        lower_bound = max(
+            item["mac_lower_bound_cycles"] for item in core_results
+        )
+
+    return {
+        "model": (
+            "lut_operations_plus_probabilistic_banks"
+            if is_lut
+            else
+            "source_operations_plus_probabilistic_banks"
+        ),
+        "implementation": ("lut" if is_lut else "mac"),
+        "kernel_name": kernel.name,
+        "requested_cores": execution.num_cores,
+        "active_cores": active_cores,
+        "peak_mac_per_cycle_per_core": peak_per_core,
+        "partition_mode": partition_mode,
+        "mac_lower_bound_cycles": lower_bound,
+        "lut_lookup_operations": (
+            sum(
+                item.get("lut_lookups", 0)
+                for item in core_results
+            )
+            if is_lut
+            else 0
+        ),
+        "expected_cycles": critical_expected["expected_cycles"],
+        "pessimistic_cycles": critical_pessimistic["pessimistic_cycles"],
+        "critical_core_expected": critical_expected["core_id"],
+        "critical_core_pessimistic": critical_pessimistic["core_id"],
+        "core_results": core_results,
+        "calibration_scale": calibration_scale,
+    }

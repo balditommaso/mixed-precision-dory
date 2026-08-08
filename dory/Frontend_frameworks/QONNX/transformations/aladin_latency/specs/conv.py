@@ -58,6 +58,9 @@ def make_pulp_conv_kernel_spec(
     input_channels = int(node.input_channels)
     output_channels = int(node.output_channels)
     name_lower = kernel_name.lower()
+    implementation = str(
+        getattr(node, "implementation", "mac") or "mac"
+    ).lower()
     is_depthwise = (
         'depthwise' in name_lower
         or (
@@ -82,6 +85,7 @@ def make_pulp_conv_kernel_spec(
         stride_height=int(node.strides[0]),
         stride_width=int(node.strides[1]),
         padding_top=int(pads[0]),
+        implementation=implementation,
         padding_left=int(pads[1]),
         padding_bottom=int(pads[2]),
         padding_right=int(pads[3]),
@@ -97,32 +101,262 @@ def make_pulp_conv_kernel_spec(
     )
 
 
-def make_single_tile_dory_conv_spec(node: Any, kernel_name: str, *, l1_offsets: Union[Mapping[str, int], None]=None, flag_relu: bool=True, flag_batch_norm: bool=False, weight_correlation: float=0.9, input_correlation: float=0.2, im2col_correlation: float=0.1, output_correlation: float=0.1, bias_correlation: float=0.8) -> NodeExecutionSpec:
-    """
-    Build a generic descriptor for the supplied single-tile DORY template.
+def make_single_tile_dory_conv_spec(
+    node: Any,
+    kernel_name: str,
+    *,
+    l1_offsets: Union[Mapping[str, int], None] = None,
+    flag_relu: bool = True,
+    flag_batch_norm: bool = False,
+    weight_correlation: float = 0.9,
+    input_correlation: float = 0.2,
+    im2col_correlation: float = 0.1,
+    output_correlation: float = 0.1,
+    bias_correlation: float = 0.8,
+    lut_correlation: float = 0.75,
+    lut_effective_banks: int = 4,
+) -> NodeExecutionSpec:
 
-    ``l1_offsets`` may contain input, output, weights, bias, and im2col.
-    Missing offsets default to zero and should be replaced with generated-code
-    values for meaningful bank-spread estimates.
-    """
-    kernel = make_pulp_conv_kernel_spec(node, kernel_name, flag_relu=flag_relu, flag_batch_norm=flag_batch_norm)
-    input_pixel_bytes = ceil(kernel.input_channels * kernel.input_bits / 8)
-    output_pixel_bytes = ceil(kernel.output_channels * kernel.output_bits / 8)
-    weight_bytes_per_position = ceil(kernel.input_channels * kernel.weight_bits / 8)
-    weight_stride_output_channel = ceil(kernel.reduction_size * kernel.weight_bits / 8)
+    kernel = make_pulp_conv_kernel_spec(
+        node,
+        kernel_name,
+        flag_relu=flag_relu,
+        flag_batch_norm=flag_batch_norm,
+    )
+
+    is_lut = kernel.implementation == "lut"
+
+    input_pixel_bytes = ceil(
+        kernel.input_channels * kernel.input_bits / 8
+    )
+    output_pixel_bytes = ceil(
+        kernel.output_channels * kernel.output_bits / 8
+    )
+    weight_bytes_per_position = ceil(
+        kernel.input_channels * kernel.weight_bits / 8
+    )
+    weight_stride_output_channel = ceil(
+        kernel.reduction_size * kernel.weight_bits / 8
+    )
+
+    bias_bytes = nonnegative_int(
+        getattr(node, "bias_memory", 0)
+    )
+
+    l1 = (
+        getattr(node, "tiling_dimensions", {})
+        .get("L1", {})
+    )
+    lut_bytes = (
+        nonnegative_int(l1.get("lut_memory", 0))
+        if is_lut
+        else 0
+    )
+
     transfers: List[DMATransferSpec] = []
-    bias_bytes = nonnegative_int(getattr(node, 'bias_memory', 0))
+
     if bias_bytes:
-        transfers.append(DMATransferSpec(name='bias', direction='L2_TO_L1', number_of_2d_copies=1, number_of_1d_copies=1, length_1d_copy=bias_bytes, logical_bytes=bias_bytes))
-    transfers.extend((DMATransferSpec(name='input', direction='L2_TO_L1', number_of_2d_copies=kernel.input_height, number_of_1d_copies=kernel.input_width, length_1d_copy=input_pixel_bytes, stride_2d=kernel.input_width * input_pixel_bytes, stride_1d=input_pixel_bytes, logical_bytes=nonnegative_int(node.input_activation_memory)), DMATransferSpec(name='weights', direction='L2_TO_L1', number_of_2d_copies=kernel.output_channels, number_of_1d_copies=kernel.kernel_height * kernel.kernel_width, length_1d_copy=weight_bytes_per_position, stride_2d=weight_stride_output_channel, stride_1d=weight_bytes_per_position, logical_bytes=nonnegative_int(node.weight_memory), barrier_calls=2), DMATransferSpec(name='output', direction='L1_TO_L2', number_of_2d_copies=kernel.output_height, number_of_1d_copies=kernel.output_width, length_1d_copy=output_pixel_bytes, stride_2d=kernel.output_width * output_pixel_bytes, stride_1d=output_pixel_bytes, logical_bytes=nonnegative_int(node.output_activation_memory))))
+        transfers.append(
+            DMATransferSpec(
+                name="bias",
+                direction="L2_TO_L1",
+                number_of_2d_copies=1,
+                number_of_1d_copies=1,
+                length_1d_copy=bias_bytes,
+                logical_bytes=bias_bytes,
+            )
+        )
+
+    transfers.extend([
+        DMATransferSpec(
+            name="input",
+            direction="L2_TO_L1",
+            number_of_2d_copies=kernel.input_height,
+            number_of_1d_copies=kernel.input_width,
+            length_1d_copy=input_pixel_bytes,
+            stride_2d=kernel.input_width * input_pixel_bytes,
+            stride_1d=input_pixel_bytes,
+            logical_bytes=nonnegative_int(
+                node.input_activation_memory
+            ),
+        ),
+
+        DMATransferSpec(
+            name="weights",
+            direction="L2_TO_L1",
+            number_of_2d_copies=kernel.output_channels,
+            number_of_1d_copies=(
+                kernel.kernel_height * kernel.kernel_width
+            ),
+            length_1d_copy=weight_bytes_per_position,
+            stride_2d=weight_stride_output_channel,
+            stride_1d=weight_bytes_per_position,
+            logical_bytes=nonnegative_int(
+                node.weight_memory
+            ),
+            barrier_calls=2,
+        ),
+    ])
+
+    if is_lut and lut_bytes:
+        transfers.append(
+            DMATransferSpec(
+                name="lut",
+                direction="L2_TO_L1",
+                number_of_2d_copies=1,
+                number_of_1d_copies=1,
+                length_1d_copy=lut_bytes,
+                logical_bytes=lut_bytes,
+            )
+        )
+
+    transfers.append(
+        DMATransferSpec(
+            name="output",
+            direction="L1_TO_L2",
+            number_of_2d_copies=kernel.output_height,
+            number_of_1d_copies=kernel.output_width,
+            length_1d_copy=output_pixel_bytes,
+            stride_2d=kernel.output_width * output_pixel_bytes,
+            stride_1d=output_pixel_bytes,
+            logical_bytes=nonnegative_int(
+                node.output_activation_memory
+            ),
+        )
+    )
+
     offsets = dict(l1_offsets or {})
-    regions: Dict[str, L1RegionSpec] = {'input': L1RegionSpec('input', offsets.get('input', 0), nonnegative_int(node.input_activation_memory)), 'output': L1RegionSpec('output', offsets.get('output', 0), nonnegative_int(node.output_activation_memory)), 'weights': L1RegionSpec('weights', offsets.get('weights', 0), max(nonnegative_int(node.weight_memory), transfers[-2].physical_bytes)), 'im2col': L1RegionSpec('im2col', offsets.get('im2col', 0), kernel.im2col_bytes_per_core, per_core_stride_bytes=kernel.im2col_bytes_per_core)}
+
+    regions: Dict[str, L1RegionSpec] = {
+        "input": L1RegionSpec(
+            "input",
+            offsets.get("input", 0),
+            nonnegative_int(node.input_activation_memory),
+        ),
+        "output": L1RegionSpec(
+            "output",
+            offsets.get("output", 0),
+            nonnegative_int(node.output_activation_memory),
+        ),
+        "weights": L1RegionSpec(
+            "weights",
+            offsets.get("weights", 0),
+            nonnegative_int(node.weight_memory),
+        ),
+        "im2col": L1RegionSpec(
+            "im2col",
+            offsets.get("im2col", 0),
+            kernel.im2col_bytes_per_core,
+            per_core_stride_bytes=kernel.im2col_bytes_per_core,
+        ),
+    }
+
     if bias_bytes:
-        regions['bias'] = L1RegionSpec('bias', offsets.get('bias', 0), bias_bytes)
-    patterns: List[BankAccessPattern] = [BankAccessPattern(name='input_feature_map_reads', component='input_reads', correlation=input_correlation, region_name='input', access_width_bytes=4, access_stride_bytes=max(1, input_pixel_bytes)), BankAccessPattern(name='private_im2col_writes', component='im2col_writes', correlation=im2col_correlation, region_name='im2col', access_width_bytes=4, access_stride_bytes=4), BankAccessPattern(name='private_im2col_reads', component='im2col_reads', correlation=im2col_correlation, region_name='im2col', access_width_bytes=4, access_stride_bytes=4), BankAccessPattern(name='shared_weight_reads', component='weight_reads', correlation=weight_correlation, broadcast_eligible=True, region_name='weights', access_width_bytes=4, access_stride_bytes=4), BankAccessPattern(name='output_writes', component='output_writes', correlation=output_correlation, region_name='output', access_width_bytes=1, access_stride_bytes=max(1, output_pixel_bytes))]
+        regions["bias"] = L1RegionSpec(
+            "bias",
+            offsets.get("bias", 0),
+            bias_bytes,
+        )
+
+    # NEW: LUT memory region.
+    if is_lut and lut_bytes:
+        regions["lut"] = L1RegionSpec(
+            "lut",
+            offsets.get("lut", 0),
+            lut_bytes,
+        )
+
+    patterns: List[BankAccessPattern] = [
+        BankAccessPattern(
+            name="input_feature_map_reads",
+            component="input_reads",
+            correlation=input_correlation,
+            region_name="input",
+            access_width_bytes=4,
+            access_stride_bytes=max(1, input_pixel_bytes),
+        ),
+
+        BankAccessPattern(
+            name="private_im2col_writes",
+            component="im2col_writes",
+            correlation=im2col_correlation,
+            region_name="im2col",
+            access_width_bytes=4,
+            access_stride_bytes=4,
+        ),
+
+        BankAccessPattern(
+            name="private_im2col_reads",
+            component="im2col_reads",
+            correlation=im2col_correlation,
+            region_name="im2col",
+            access_width_bytes=4,
+            access_stride_bytes=4,
+        ),
+
+        BankAccessPattern(
+            name="shared_weight_reads",
+            component="weight_reads",
+            correlation=weight_correlation,
+            broadcast_eligible=True,
+            region_name="weights",
+            access_width_bytes=4,
+            access_stride_bytes=4,
+        ),
+
+        BankAccessPattern(
+            name="output_writes",
+            component="output_writes",
+            correlation=output_correlation,
+            region_name="output",
+            access_width_bytes=1,
+            access_stride_bytes=max(1, output_pixel_bytes),
+        ),
+    ]
+
     if bias_bytes:
-        patterns.append(BankAccessPattern(name='shared_bias_reads', component='bias_reads', correlation=bias_correlation, broadcast_eligible=True, region_name='bias', access_width_bytes=4, access_stride_bytes=4))
-    return NodeExecutionSpec(dma_transfers=tuple(transfers), compute_kernel=kernel, l1_regions=regions, bank_access_patterns=tuple(patterns), total_tiles=1, team_barriers_outside_kernel=4, team_barriers_inside_kernel=1, control_events={'dma_allocations': 1, 'dma_frees': 1, 'kernel_calls': 1})
+        patterns.append(
+            BankAccessPattern(
+                name="shared_bias_reads",
+                component="bias_reads",
+                correlation=bias_correlation,
+                broadcast_eligible=True,
+                region_name="bias",
+                access_width_bytes=4,
+                access_stride_bytes=4,
+            )
+        )
+
+    # NEW: this is the important LUT conflict model.
+    if is_lut and lut_bytes:
+        patterns.append(
+            BankAccessPattern(
+                name="lut_table_reads",
+                component="lut_reads",
+                requester_scope="active_cores",
+                correlation=lut_correlation,
+                region_name="lut",
+                access_width_bytes=1,
+                access_stride_bytes=1,
+                effective_banks_override=lut_effective_banks,
+                broadcast_eligible=False,
+            )
+        )
+
+    return NodeExecutionSpec(
+        dma_transfers=tuple(transfers),
+        compute_kernel=kernel,
+        l1_regions=regions,
+        bank_access_patterns=tuple(patterns),
+        total_tiles=1,
+        team_barriers_outside_kernel=4,
+        team_barriers_inside_kernel=1,
+        control_events={
+            "dma_allocations": 1,
+            "dma_frees": 1,
+            "kernel_calls": 1,
+        },
+    )
 
 
 def make_single_tile_dory_depthwise_spec(

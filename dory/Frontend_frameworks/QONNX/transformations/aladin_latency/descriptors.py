@@ -14,15 +14,16 @@ PartitionStrategy = Literal[
     'single_core',
 ]
 MemoryComponent = Literal[
-    'input_reads',
-    'second_input_reads',
-    'im2col_writes',
-    'im2col_reads',
-    'weight_reads',
-    'weight_unpack_writes',
-    'weight_buffer_reads',
-    'bias_reads',
-    'output_writes',
+    "input_reads",
+    "second_input_reads",
+    "im2col_writes",
+    "im2col_reads",
+    "weight_reads",
+    "weight_unpack_writes",
+    "weight_buffer_reads",
+    "bias_reads",
+    "lut_reads",
+    "output_writes",
 ]
 RequesterScope = Literal['active_cores', 'all_cores', 'single', 'fixed']
 
@@ -142,6 +143,7 @@ class KernelComputeSpec:
     padding_right: int
     groups: int = 1
     kernel_kind: str = 'standard_conv'
+    implementation: str = "mac"
     input_bits: int = 8
     weight_bits: int = 4
     output_bits: int = 8

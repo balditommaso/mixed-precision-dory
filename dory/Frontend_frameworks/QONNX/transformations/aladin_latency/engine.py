@@ -59,28 +59,75 @@ def _estimate_kernel(
     validate_graph_macs: bool,
     warnings: List[str],
 ) -> Dict[str, Any]:
-    cluster_peak = float(hw_spec['peak MAC/cycle'][peak_key])
+    """
+    Estimate the compute latency of one kernel.
+    """
+
+    cluster_peak = float(
+        hw_spec["peak MAC/cycle"][peak_key]
+    )
 
     if isinstance(kernel, KernelComputeSpec):
-        if validate_graph_macs:
+
+        node_implementation = str(
+            getattr(node, "implementation", "") or ""
+        ).lower()
+
+        kernel_implementation = str(
+            getattr(kernel, "implementation", "") or ""
+        ).lower()
+
+        is_lut = (
+            node_implementation == "lut"
+            or kernel_implementation == "lut"
+        )
+
+        if validate_graph_macs and not is_lut:
             modeled_macs = int(kernel.total_macs)
-            graph_macs = int(getattr(node, 'MACs', 0) or 0)
-            relative_mac_error = abs(modeled_macs - graph_macs) / max(1, graph_macs)
-            if graph_macs > 0 and relative_mac_error > 0.05:
+            graph_macs = int(getattr(node, "MACs", 0) or 0)
+
+            if graph_macs > 0:
+
+                relative_mac_error = (
+                    abs(modeled_macs - graph_macs) / float(max(1, graph_macs))
+                )
+
+                if relative_mac_error > 0.05:
+
+                    warnings.append(
+                        f"kernel descriptor has "
+                        f"{modeled_macs} MACs but graph "
+                        f"reports {graph_macs}; using "
+                        f"the graph-MAC group-aware "
+                        f"fallback"
+                    )
+
+                    return (
+                        estimate_grouped_compute_fallback(
+                            kernel,
+                            graph_macs,
+                            hw_spec,
+                            execution,
+                            pessimism,
+                            peak_key,
+                            calibration_scale,
+                        )
+                    )
+
+        if is_lut:
+            geometric_operations = int(kernel.total_macs)
+            graph_macs = int(getattr(node, "MACs", 0) or 0)
+
+            if graph_macs == 0:
                 warnings.append(
-                    f'kernel descriptor has {modeled_macs} MACs but graph reports '
-                    f'{graph_macs}; using the graph-MAC group-aware fallback'
+                    "LUT convolution detected: graph MAC "
+                    "count is zero by construction; "
+                    f"{geometric_operations} geometric "
+                    "product positions are modeled as LUT "
+                    "lookup/accumulation operations."
                 )
-                return estimate_grouped_compute_fallback(
-                    kernel,
-                    graph_macs,
-                    hw_spec,
-                    execution,
-                    pessimism,
-                    peak_key,
-                    calibration_scale,
-                )
-        return estimate_compute(
+
+        compute = estimate_compute(
             kernel,
             hw_spec,
             execution,
@@ -94,7 +141,16 @@ def _estimate_kernel(
             calibration_scale,
         )
 
+        if is_lut:
+            compute = dict(compute)
+            compute["implementation"] = "lut"
+            compute["lut_lookup_operations"] = int(kernel.total_macs)
+            compute["graph_macs"] = int(getattr(node, "MACs", 0) or 0)
+
+        return compute
+
     if isinstance(kernel, PoolKernelSpec):
+
         return estimate_pool_compute(
             kernel,
             execution,
@@ -107,13 +163,18 @@ def _estimate_kernel(
         )
 
     if isinstance(kernel, LinearKernelSpec):
+
         if validate_graph_macs:
-            graph_macs = int(getattr(node, 'MACs', 0) or 0)
+            graph_macs = int(getattr(node, "MACs", 0) or 0)
+
             if graph_macs > 0 and kernel.total_macs != graph_macs:
                 warnings.append(
-                    f'linear descriptor has {kernel.total_macs} MACs '
-                    f'but graph reports {graph_macs}'
+                    f"linear descriptor has "
+                    f"{kernel.total_macs} MACs "
+                    f"but graph reports "
+                    f"{graph_macs}"
                 )
+
         return estimate_linear_compute(
             kernel,
             hw_spec,
@@ -128,6 +189,7 @@ def _estimate_kernel(
         )
 
     if isinstance(kernel, AddKernelSpec):
+
         compute = estimate_add_compute(
             kernel,
             execution,
@@ -138,21 +200,29 @@ def _estimate_kernel(
             pessimism,
             calibration_scale,
         )
-        if compute.get('ignored_tail_values', 0):
+
+        if compute.get("ignored_tail_values", 0):
             warnings.append(
-                'The supplied add kernel processes values in groups of four '
-                'and has no scalar tail loop.'
+                "The supplied add kernel processes "
+                "values in groups of four and has "
+                "no scalar tail loop."
             )
+
         return compute
 
-    mac_lower = ceil(int(getattr(node, 'MACs', 0) or 0) / cluster_peak)
+    graph_macs = int(
+        getattr(node, "MACs", 0) or 0
+    )
+
+    mac_lower = ceil(graph_macs / cluster_peak)
+
     return {
-        'model': 'mac_only_fallback',
-        'mac_lower_bound_cycles': mac_lower,
-        'expected_cycles': ceil(mac_lower * 1.25 * calibration_scale),
-        'pessimistic_cycles': ceil(mac_lower * 1.75 * calibration_scale),
-        'active_cores': execution.num_cores,
-        'core_results': [],
+        "model": "mac_only_fallback",
+        "mac_lower_bound_cycles": mac_lower,
+        "expected_cycles": ceil(mac_lower * 1.25 * calibration_scale),
+        "pessimistic_cycles": ceil(mac_lower * 1.75 * calibration_scale),
+        "active_cores": execution.num_cores,
+        "core_results": [],
     }
 
 

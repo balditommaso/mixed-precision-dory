@@ -5,6 +5,8 @@ from ortools.constraint_solver import pywrapcp
 from dory.Hardware_targets.PULP.Common.Tiler.tiler_common import PULPTilerCommon
 
 
+CLUSTER_NODES = 8
+
 
 @dataclass(frozen=True)
 class TileShape:
@@ -875,7 +877,6 @@ class Tiler_Conv2D_PULP(PULPTilerCommon):
         precision_parallelism = self._precision_parallelism()
         
         if group == 1:
-            # TODO: check implementation
             im2col = int(
                 2
                 * cores
@@ -983,7 +984,7 @@ class Tiler_Conv2D_PULP(PULPTilerCommon):
         return (
             hw["memory"]["L1"]["dimension"]
             - hw["HW specific parameters"]["accelerator core0 stack"]
-            - (self.num_cores - 1)
+            - (CLUSTER_NODES - 1)
             * hw["HW specific parameters"]["accelerator core1-7 stack"]
         )
     
