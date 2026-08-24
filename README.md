@@ -25,60 +25,8 @@ source docker_util/docker_pulp_sdk.sh
 
 Experimets
 ---------
-1. Train the network:
-```
-cd impl_design
-python training.py --save_dir ./checkpoint \
-  --dataset cifar-10 \
-  --model mobilenet_v1 \
-  --file_name MV1 \
-  --lr 0.05 \
-  --batch_size 128 \
-  --num_workers 4 \
-  --seed 42 \
-  --epochs 300 \
-  --scheduler cosine \
-  --save_json
-cd ..
-```
-This command will generate a JSON file where the user can specify the information for the quantization process.
 
-2. Apply QAT to a network:
-```
-cd impl_design
-python qat.py --save_dir ./checkpoint \
-  --model_path ./checkpoint/MV1.ckpt \
-  --dataset cifar-10 \
-  --model mobilenet_v1 \
-  --config_path ./checkpoint/MV1_mix_4_8bit.json \
-  --file_name quant_MV1_4bit \
-  --lr 0.001 \
-  --batch_size 128 \
-  --num_workers 4 \
-  --seed 42 \
-  --epochs 50 \
-  --scheduler cosine \
-  --save_onnx
-cd ..
-```
-This command will generate the QONNX file that will be used from Dory for the parsing and it generate a JSON file that can be used by to specify the *implementation* choice of each operation.
-
-3. Run implementation aware analysis:
-```
-cd impl_design
-python impl_design.py --config_files <list of config files> 
-cd ..
-```
-This will generate the CSV and plots realtively to the implementation information
-
-4. Run implementation design search:
-```
-source docker_util/docker_pulp_sdk.sh
-python platform_design/design_search.py --config_files <list of config files> 
-```
-This will generate the CSV and plots realtively to the platform performances
- 
-*NOTE: you can find config files already available in the repo*
+You can run the experiments from the Jupyter notebook in `./notebooks/aladin.ipynb`.
 
 
 ### Reference
