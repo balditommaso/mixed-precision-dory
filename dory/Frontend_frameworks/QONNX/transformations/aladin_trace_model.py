@@ -188,10 +188,10 @@ def _mac_bops(
     return int(
         macs
         * (
-            1
-            + int(input_bitwidth)
-            + int(weight_bitwidth)
-            + int(output_bitwidth)
+            input_bitwidth * weight_bitwidth
+            + input_bitwidth
+            + weight_bitwidth
+            + output_bitwidth
         )
     )
 

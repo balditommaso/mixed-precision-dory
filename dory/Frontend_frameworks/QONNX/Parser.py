@@ -34,7 +34,6 @@ class onnx_manager(Quantlab_onnx_manager):
         self, 
         onnx_path: str, 
         config_file: Dict[str, Any],
-        # config_dir: str = "", 
         net_prefix: str = "", 
         log: str = "./logs/Frontend",
         delta: int = 16,
@@ -49,21 +48,15 @@ class onnx_manager(Quantlab_onnx_manager):
         self.model_dir = os.path.dirname(onnx_path)
         os.system(f"rm -rf {self.log_dir}")
         os.system(f"mkdir -p {self.log_dir}")
-        # load the model
         model = ModelWrapper(on.load(onnx_path))
-        # apply transformations
         model = cleanup_model(model, override_inpsize=1)
         model.save(os.path.join(self.log_dir, "A_QONNX_cleanup.onnx"))
-        # fold static quantization
         model = model.transform(RecordOutScale(verbose=verbose))
         model = model.transform(FoldStaticQuant(verbose=verbose))
         model.save(os.path.join(self.log_dir, "B_QONNX_fold_static_quant.onnx"))
-        # generate config.json file
         model = model.transform(DoryConfigParser(config=config_file, code_size=150000, verbose=verbose))
         model.save(os.path.join(self.log_dir, "C_QONNX_remove_input_quant.onnx"))
-        # adapt to dory activation quantization
         transformed_onnx_path = os.path.join(self.log_dir, "D_QONNX_parse_quant_act.onnx")
-        # TODO: fuse add and QUANT node
         model = model.transform(DoryResidualQuantParser(delta=delta))
         model = model.transform(DoryQuantParser(delta=delta, verbose=verbose))
         model = model.transform(DoryAvgPoolQuantParser(delta=delta, verbose=verbose))
@@ -73,7 +66,6 @@ class onnx_manager(Quantlab_onnx_manager):
 
         model.save(transformed_onnx_path)
         print("QONNX conversion complete!\nValidation...")
-        # self.check_flow(qonnx_model, transformed_onnx_path, config_file)
 
         super().__init__(transformed_onnx_path, config_file, net_prefix)
 
@@ -137,7 +129,6 @@ class onnx_manager(Quantlab_onnx_manager):
         else:
             input_tensor = np.array(json.loads(onnx_input))
         
-        # run the tests
         np.save(input_tensor_path, input_tensor)
         exec_qonnx(qonnx_model_path, input_tensor_path, output_prefix=self.log_dir)
         qonnx_output = np.load(os.path.join(self.log_dir, "global_out_batch0.npy"))
@@ -145,15 +136,13 @@ class onnx_manager(Quantlab_onnx_manager):
         model = on.load(transformed_model)
         self.clean_model(model)
         
-        # compute the output of Dory-like DAG        
         sess = ort.InferenceSession(model.SerializeToString())
         dory_output =sess.run([sess.get_outputs()[0].name], {"0": input_tensor})[0]    
         print("Are prediction equal?", qonnx_output.argmax() == dory_output.argmax())
         
-        # store for Dory processing
         np.savetxt(
             os.path.join(self.model_dir, "input.txt"),
-            input_tensor.reshape(-1, 1),  # make it a column
+            input_tensor.reshape(-1, 1), 
             fmt="%d",
             delimiter=","
         )

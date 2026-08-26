@@ -44,12 +44,12 @@ class Parser_HW_to_C:
         self.num_cores = num_cores
 
 
-    def adding_numbers_to_layers(self):
+    def adding_numbers_to_layers(self) -> None:
         for i, node in enumerate(self.HWgraph):
             node.name = node.name + str(i)
 
 
-    def mapping_network_to_C_file(self):
+    def mapping_network_to_C_file(self) -> None:
         print("\nGenerating the .c file of the network.")
         Network_writer.print_template_network(
             self.HWgraph,
@@ -63,7 +63,7 @@ class Parser_HW_to_C:
         )
 
 
-    def mapping_makefile(self):
+    def mapping_makefile(self) -> None:
         print("\nGenerating the Makefile.")
         Makefile_writer.print_template_Makefile(
             self.HWgraph,
@@ -73,14 +73,14 @@ class Parser_HW_to_C:
         )
 
 
-    def l2_c_template(self, node, backend_library):
+    def l2_c_template(self, node: HW_node, backend_library: str) -> str:
         if "Pool" in node.name:
-            if(backend_library == '1D_Conv'):
+            if backend_library == '1D_Conv':
                 return "pooling_layer_1D_template.c"
             else:
                 return "layer_L2_c_pooling_template.c"
         elif "Addition" in node.name:
-            if(backend_library == '1D_Conv'):
+            if backend_library == '1D_Conv':
                 return "add_layer_1D_template.c"
             else:
                 return "layer_L2_c_addition_template.c"
@@ -88,7 +88,7 @@ class Parser_HW_to_C:
             return "layer_L2_c_conv_template.c.t"
 
 
-    def l2_template_mapping(self, node, backend_library):
+    def l2_template_mapping(self, node: HW_node, backend_library: str) -> dict[str, str]:
         tmpl_c = self.l2_c_template(node, backend_library)
         return {
             os.path.join(self.src_dir, node.prefixed_name + ".c"): os.path.join(self.tmpl_dir, tmpl_c),
@@ -96,15 +96,15 @@ class Parser_HW_to_C:
         }
 
 
-    def mapping_layers_to_C_files(self):
+    def mapping_layers_to_C_files(self) -> None:
         print("\nTo be implemented in the target backend")
 
 
-    def copy_backend_files(self, node):
+    def copy_backend_files(self, node: HW_node) -> None:
         print("\nTo be implemented in the target backend")
 
 
-    def copy_utils_files(self):
+    def copy_utils_files(self) -> None:
         print("\nCopying Utils.")
         for file in os.listdir(self.utils_files_dir):
             file_to_copy = os.path.join(self.utils_files_dir, file)
@@ -114,12 +114,12 @@ class Parser_HW_to_C:
                 os.system('cp -L "{}" {}'.format(file_to_copy, self.inc_dir))
 
 
-    def create_hex_weights_files(self):
+    def create_hex_weights_files(self) -> None:
         print("\nGenerating .hex weight files.")
 
         os.makedirs(self.hex_dir, exist_ok=True)
 
-        for node_index, node in enumerate(self.HWgraph):
+        for node in self.HWgraph:
             constants = [None, None, None, None]
 
             for name in node.constant_names:
@@ -149,19 +149,15 @@ class Parser_HW_to_C:
                     )
 
                 value = np.asarray(constant_data["value"])
-
                 if value.size == 0:
                     continue
 
-                # Required because weights can be 4D while bias is 1D.
                 flattened_values.append(value.reshape(-1))
 
             if not flattened_values:
                 continue
 
             weights = np.concatenate(flattened_values)
-
-            # Pad the total number of elements to a multiple of four.
             padding = (-weights.size) % 4
 
             if padding:
@@ -174,7 +170,6 @@ class Parser_HW_to_C:
 
             output_name = f"{node.prefixed_name}_weights.hex"
             output_path = os.path.join(self.hex_dir, output_name)
-
             weights.astype(np.uint8).tofile(output_path)
 
             print(
@@ -183,7 +178,7 @@ class Parser_HW_to_C:
             )
 
 
-    def create_hex_input(self):
+    def create_hex_input(self) -> None:
         print("\nGenerating .hex input file.")
         prefix = self.HWgraph[0].prefix
         for in_idx in range(self.n_inputs):
@@ -208,7 +203,12 @@ class Parser_HW_to_C:
                 x_in = np.random.randint(
                     low=-2**(in_node.input_activation_bits - 1) if signed else 0, 
                     high=2**(in_node.input_activation_bits - 1) - 1 if signed else 2**in_node.input_activation_bits,
-                    size=self.HWgraph[0].group * self.HWgraph[0].input_channels * self.HWgraph[0].input_dimensions[0] * self.HWgraph[0].input_dimensions[1],
+                    size=(
+                        self.HWgraph[0].group 
+                        * self.HWgraph[0].input_channels 
+                        * self.HWgraph[0].input_dimensions[0] 
+                        * self.HWgraph[0].input_dimensions[1],
+                    ),
                     dtype=np.int8 if signed else np.uint8,
                 )
                     
@@ -221,35 +221,35 @@ class Parser_HW_to_C:
             
 
     @property
-    def src_dir(self):
+    def src_dir(self) -> str:
         return os.path.join(self.app_directory, self.src_dir_rel)
 
 
     @property
-    def inc_dir(self):
+    def inc_dir(self) -> str:
         return os.path.join(self.app_directory, self.inc_dir_rel)
 
 
     @property
-    def hex_dir(self):
+    def hex_dir(self) -> str:
         return os.path.join(self.app_directory, self.hex_dir_rel)
 
 
-    def get_file_path(self):
+    def get_file_path(self) -> None:
         raise NotImplementedError("To be implemented by child class!")
 
 
     @property
-    def tmpl_dir(self):
+    def tmpl_dir(self) -> str:
         return os.path.realpath(os.path.join(self.get_file_path(), 'Templates/layer_templates'))
 
 
     @property
-    def utils_files_dir(self):
+    def utils_files_dir(self) -> str:
         return os.path.realpath(os.path.join(self.get_file_path(), 'Utils_files'))
 
 
-    def full_graph_parsing(self):
+    def full_graph_parsing(self) -> None:
         print("#####################################################")
         print("## DORY GENERAL PARSING FROM DORY HW IR TO C FILES ##")
         print("## FINAL RAPRESENTATION: COMPILABLE C PROJECT      ##")

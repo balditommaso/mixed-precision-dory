@@ -1,11 +1,6 @@
-
-
-# Libraries
 import numpy as np
 import json
 import os
-
-# DORY modules
 from dory.Parsers import HW_node, Layer_node
 from dory.Parsers.Parser_DORY_to_HW import Parser_DORY_to_HW
 from functools import partial
@@ -32,7 +27,6 @@ class onnx_manager_PULP(Parser_DORY_to_HW):
         "BNReluQAddition"
     ]
 
-    # Used to manage the ONNX files. By now, supported Convolutions (PW and DW), Pooling, Fully Connected and Relu.
     def __init__(
         self, 
         graph: list[HW_node.HW_node], 
@@ -69,7 +63,6 @@ class onnx_manager_PULP(Parser_DORY_to_HW):
         
             
         tiler = self.get_tiler()
-
         tiler = partial(tiler, double_buffering=self.double_buffering)
         
         network_directory = None
@@ -93,64 +86,89 @@ class onnx_manager_PULP(Parser_DORY_to_HW):
             num_cores
         )
 
+
     def get_file_path(self):
         raise NotImplementedError("To be implemented by child class!")
+
 
     def get_pattern_rewriter(self):
         raise NotImplementedError("To be implemented by child class!")
 
+
     def get_tiler(self):
         raise NotImplementedError("To be implemented by child class!")
 
-    def _get_weights_attr(self, node):
+
+    def _get_weights_attr(self, node: HW_node.HW_node) -> dict:
         weights_name = None
         for name in node.constant_names:
-            if name not in ["l","k","outshift","outmul"]:
+            if name not in ["l", "k", "outshift", "outmul"]:
                 if "bias" not in name:
                     weights_name = name
-        assert weights_name is not None, f"Node  {node.name} of op {node.op_type} doesn't have weights."
+                    
+        assert weights_name is not None, (
+            f"Node  {node.name} of op {node.op_type} doesn't have weights."
+        )
+        
         return getattr(node, weights_name)
 
-    def adjust_node_data_layout(self, node, node_id):
+
+    def adjust_node_data_layout(self, node: HW_node.HW_node, node_id: int) -> None:
         if "FullyConnected" in node.name:
             weights = self._get_weights_attr(node)
+            
             if weights["layout"] == "CinCout":
                 weights["value"] = weights["value"].T
                 weights["layout"] = "CoutCin"
+            
             prev_node = self.DORY_Graph[node_id-1]
             if node_id != 0 and prev_node.layout == "CHW":
                 temp = weights["value"]
-                temp = temp.reshape(node.output_channels, prev_node.output_channels, prev_node.output_dimensions[0], prev_node.output_dimensions[1])
+                temp = temp.reshape(
+                    node.output_channels, 
+                    prev_node.output_channels, 
+                    prev_node.output_dimensions[0], 
+                    prev_node.output_dimensions[1]
+                )
+                
                 temp = np.transpose(temp, (0, 2, 3, 1))
                 temp = temp.flatten()
                 weights["value"] = temp
-                # needed to compute final checksum for <8b layers
+                
         elif "Convolution" in node.name:
             weights = self._get_weights_attr(node)
             if weights["layout"] == "CoutCinK":
                 if node.conv1d:
                     weights["value"] = weights["value"][:,:,None,:]
+                
                 weights["value"] = np.transpose(weights["value"], (0,2,3,1))
                 weights["layout"] = "CoutKCin"
 
-    def adjust_data_layout(self):
+
+    def adjust_data_layout(self) -> None:
         print("\nPULP Backend: Adjusting Data Layout to HWC and CoutKCin.")
         for i, node in enumerate(self.DORY_Graph):
              self.adjust_node_data_layout(node, i)
 
-    def check_parameters(self):
+
+    def check_parameters(self) -> None:
         WARNINGS =0
         for node in self.DORY_Graph:
             for key, value in node.__dict__.items():
-                if key not in HW_node.HW_node(Layer_node.Layer_node(), self.HW_description).__dict__.keys() and key not in Layer_node.Layer_node().__dict__.keys():
-                    if key not in node.constant_names:
-                        print("WARNING: DORY Backend. Attribute {} of Node {} is not inside the predefined parameters for DORY nodes.".format(key, node.name))
-                        WARNINGS +=1
+                if (key not in HW_node.HW_node(Layer_node.Layer_node(), self.HW_description).__dict__.keys() 
+                    and key not in Layer_node.Layer_node().__dict__.keys()
+                    and key not in node.constant_names
+                ):
+                    print("WARNING: DORY Backend. Attribute {} of Node {} is not inside the predefined parameters for DORY nodes.".format(key, node.name))
+                    WARNINGS += 1
+                    
                 if isinstance(value, list):
                     if len(value) == 0:
-                        WARNINGS +=1
+                        WARNINGS += 1
                         print("WARNING: DORY Backend. Attribute {} of Node {} is an empty list.".format(key, node.name))
+                
                 if isinstance(value, type(None)):
-                    WARNINGS +=1
+                    WARNINGS += 1
                     print("WARNING: DORY Backend. Attribute {} of Node {} is still not initialized.".format(key, node.name))
+                    
         print("\nDORY checking of the attribute of the graph: {} WARNINGS\n".format(WARNINGS))

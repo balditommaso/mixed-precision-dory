@@ -1,20 +1,38 @@
-
-
-# Libraries
 import onnx
 from onnx import shape_inference
 import sys
 import copy
-
-# DORY modules
 from . import Layer_node
 from . import DORY_node
 from dory.Utils.DORY_utils import Printer
 
 
 class Parser_ONNX_to_DORY:
-    # Used to manage the ONNX files. By now, supported Convolutions (PW and DW), Pooling, Fully Connected and Relu.
-    def __init__(self, network, rules, layers_accepted, layers_neglected, layers_to_node, net_prefix=""):
+    
+    layers_supported_by_DORY_Frontend_IR = [
+        "Convolution", 
+        "Pooling", 
+        "FullyConnected", 
+        "Addition", 
+        "QAddition", 
+        "Relu", 
+        "BNRelu", 
+        "Requant"
+    ]
+    
+    '''
+    Used to manage the ONNX files. By now, supported Convolutions (PW and DW), 
+    Pooling, Fully Connected and Relu.
+    '''
+    def __init__(
+        self, 
+        network: str, 
+        rules: dict, 
+        layers_accepted: list, 
+        layers_neglected: list, 
+        layers_to_node: dict, 
+        net_prefix: str = ""
+    ):
         self.graph = onnx.load(network)
         self.Printer_Frontend = Printer("logs/Frontend")
         self.Printer_Frontend.print_onnx("Original_graph", self.graph)
@@ -23,13 +41,17 @@ class Parser_ONNX_to_DORY:
         self.layers_accepted = layers_accepted
         self.layers_neglected = layers_neglected
         self.layers_to_node = layers_to_node
-        self.layers_supported_by_DORY_Frontend_IR = ["Convolution", "Pooling", "FullyConnected", "Addition", "QAddition", "Relu", "BNRelu", "Requant"]
         self.rules = rules
         self.net_prefix = net_prefix
         print(f"onnx_to_dory net prefix: {net_prefix}")
         self.DORY_Graph = []
 
-    def create_node(self, node_iterating, graph):
+
+    def create_node(
+        self, 
+        node_iterating: DORY_node.DORY_node, 
+        graph: list[DORY_node.DORY_node]
+    ) -> DORY_node.DORY_node:
         '''
         Creation of a Layer node between Add, Convolution, Pooling and Fully Connected.
         As an alternative, create a DORY node (Mul, Shift, Div, Clip, etc...).
@@ -41,26 +63,31 @@ class Parser_ONNX_to_DORY:
             new_node.populate_Layer_node(node_iterating, graph, self.net_prefix)
         return new_node
 
-    def ONNXtoDORY(self):
-        ######### CREATING NODES ###########
+    def ONNXtoDORY(self) -> None:
         print("\nParsing ONNX Graph to create DORY graph.")
         for node_iterating in (self.graph.graph.node):
-            ### check if the node is supported
-            assert (node_iterating.op_type in self.layers_accepted), f"{node_iterating.op_type} not supported by DORY"
-            ### Neglecting some nodes since they are not translated to any operation on any backend
+            assert node_iterating.op_type in self.layers_accepted, (
+                f"{node_iterating.op_type} not supported by DORY"
+            )
+            
             if node_iterating.op_type in self.layers_neglected:
                 for node in self.DORY_Graph[::-1]:
-                    if int(node_iterating.output[0]) > int(node.get_parameter('output_index')) and node.get_parameter("name") != "Constant":
+                    if (
+                        int(node_iterating.output[0]) > int(node.get_parameter('output_index')) 
+                        and node.get_parameter("name") != "Constant"
+                    ):
                         node.add_existing_parameter('output_index', node_iterating.output[0]) 
                         break
-            # Adding a new layer
+                    
             elif node_iterating.op_type in self.layers_accepted:
                 new_node = self.create_node(node_iterating, self.graph)
                 self.DORY_Graph.append(new_node)
+                
             else:
-                sys.exit("DORY Frontend. Node not parsed.")
+                raise ValueError("DORY Frontend. Node not parsed.")
 
-    def remove_Constants(self):
+
+    def remove_Constants(self) -> None:
         print("\nEmbedding constant nodes inside nodes to which the tensors belong.")
         removed = 1
         while removed:
@@ -68,25 +95,30 @@ class Parser_ONNX_to_DORY:
                 if node.name == 'Constant':
                     self.DORY_Graph.remove(node)
                     break
+                
                 if node == self.DORY_Graph[-1]:
                     removed = 0
 
-    def frontend_mapping_to_DORY_nodes(self):
+
+    def frontend_mapping_to_DORY_nodes(self) -> None:
         print("\nTo be implemented in the target backend")
 
-    def check_graph(self):
+
+    def check_graph(self) -> None:
         for node in self.DORY_Graph:
             if node.name not in self.layers_supported_by_DORY_Frontend_IR:
-                sys.exit("\nDORY Frontend Check. Node {} is not accepted inside the DORY Frontend IR.\n".format(node.name))
+                raise ValueError("\nDORY Frontend Check. Node {} is not accepted inside the DORY Frontend IR.\n".format(node.name))
+        
         print("\nDORY checking of the graph: OK\n")
 
-    def pattern_matching(self, input_node, input_index):
+
+    def pattern_matching(self, input_node: Layer_node.Layer_node, input_index: int) -> None:
         number_of_nodes = 0
         rule_found = False
         DORY_node_indexes_to_export = []
+        
         for key, rule in self.rules.items():
-            DORY_node_indexes = []
-            DORY_node_indexes.append(input_index)
+            DORY_node_indexes = [input_index]
             index_in_pattern = []
             if rule["number_of_nodes"] == 1 and input_node.name in rule["nodes_name"]:
                 rule_found = key
@@ -96,62 +128,90 @@ class Parser_ONNX_to_DORY:
                 nodes = copy.deepcopy(rule["nodes_name"])
                 index = nodes.index(node.name)
                 nodes[index] = "Match"
+                
                 while match == 1:
                     match = 0
                     inputs = rule["dependencies"][str(index)]["inputs"]
                     outputs = rule["dependencies"][str(index)]["outputs"]
-                    for j, nodes_index in enumerate(inputs):
+                    
+                    for _, nodes_index in enumerate(inputs):
                         int_index = node.input_indexes
                         node_to_search = nodes[int(nodes_index)]
-                        for i,node_i in enumerate(self.DORY_Graph):
-                            if node_i.output_index in int_index and node_i.name == node_to_search and node_i.output_index not in index_in_pattern:
+                        
+                        for i, node_i in enumerate(self.DORY_Graph):
+                            if (
+                                node_i.output_index in int_index 
+                                and node_i.name == node_to_search 
+                                and node_i.output_index not in index_in_pattern
+                            ):
                                 nodes[int(nodes_index)] = "Match"
                                 match = 1
                                 DORY_node_indexes.append(i)
                                 index_in_pattern.append(node_i.output_index)
+                        
                     for nodes_index in outputs:
                         out_index = node.output_index
                         node_to_search = nodes[int(nodes_index)]
-                        for i,node_i in enumerate(self.DORY_Graph):
-                            if out_index in node_i.input_indexes and node_i.name == node_to_search:
+                        
+                        for i, node_i in enumerate(self.DORY_Graph):
+                            if (
+                                out_index in node_i.input_indexes 
+                                and node_i.name == node_to_search
+                            ):
                                 nodes[int(nodes_index)] = "Match"
                                 match = 1
                                 DORY_node_indexes.append(i)
                                 node = node_i
-                                index = int(nodes_index) 
+                                index = int(nodes_index)
                                 index_in_pattern.append(out_index)
-                if sum(x=="Match" for x in nodes) == len(nodes):
-                    if number_of_nodes < rule["number_of_nodes"]:
-                        rule_found = key
-                        number_of_nodes = rule["number_of_nodes"]
-                        DORY_node_indexes_to_export = DORY_node_indexes
+                
+                if (
+                    sum(x=="Match" for x in nodes) == len(nodes)
+                    and number_of_nodes < rule["number_of_nodes"]
+                ):
+                    rule_found = key
+                    number_of_nodes = rule["number_of_nodes"]
+                    DORY_node_indexes_to_export = DORY_node_indexes
+                                        
         return rule_found, DORY_node_indexes_to_export
 
-    def add_nodes_precision(self):
+
+    def add_nodes_precision(self) -> None:
         print("\nTo be implemented in the target backend")
 
-    def update_branches_graph(self):
+
+    def update_branches_graph(self) -> None:
         print("\nDORY generic Frontend. Updating branches pointers.")
-        # updating branch in/out connections
         for i, node in enumerate(self.DORY_Graph):
-            if  len(node.input_indexes)>1:
+            if len(node.input_indexes) > 1:
                 node.add_existing_parameter("branch_in", 1)
             else:
                 node.add_existing_parameter("branch_in", 0)
+            
             node_out = 0
+            
             for nodes_scan in self.DORY_Graph:
                 if node.output_index in nodes_scan.input_indexes:
-                    node_out+=1
+                    node_out += 1
+                    
             if node_out > 1:
                 node.add_existing_parameter("branch_out", 1)
             else:
                 node.add_existing_parameter("branch_out", 0)
+                
             node.add_existing_parameter("branch_change", 0)
             node.add_existing_parameter("branch_last", 0)
+            
             for nodes_scan in self.DORY_Graph:
-                if node.output_index in nodes_scan.input_indexes and len(nodes_scan.input_indexes)>1:
+                if (
+                    node.output_index in nodes_scan.input_indexes 
+                    and len(nodes_scan.input_indexes) > 1
+                ):
                     for j, nodes_scan_2 in enumerate(self.DORY_Graph):
-                        if nodes_scan_2.output_index in nodes_scan.input_indexes and nodes_scan_2.output_index != node.output_index:
+                        if (
+                            nodes_scan_2.output_index in nodes_scan.input_indexes 
+                            and nodes_scan_2.output_index != node.output_index
+                        ):
                             if nodes_scan_2.branch_out != 1 and node.branch_out != 1:
                                 if i < j:
                                     node.add_existing_parameter("branch_change", 1)
@@ -162,13 +222,15 @@ class Parser_ONNX_to_DORY:
                                     node.add_existing_parameter("branch_last", 1)   
                                     break
                             else:
-                                if(i < j):
+                                if i < j:
                                     node.add_existing_parameter("branch_last", 1)
                                 else:
                                     nodes_scan_2.add_existing_parameter("branch_last", 1)  
 
-    def add_data_layout(self):
+
+    def add_data_layout(self) -> None:
         print("\nTo be implemented in the target backend")
+
 
     def full_graph_parsing(self):
         print("")

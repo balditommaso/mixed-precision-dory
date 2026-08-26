@@ -1,4 +1,3 @@
-# ignore all logs
 *.log
 *logs
 __pycache__
@@ -7,23 +6,14 @@ application
 .DS_Store
 *DS_Store
 **/gmon.out
-.idea
 dory.egg-info
 dory.egg-info/
 workspaces*
 .vscode
-data
-lightning_logs
 pulp_nn_network_test.txt
 HW_description.json
 */HW_description.json
 .pytest_cache
-*image
-analysis
-impl_design/analysis/*.csv
-impl_design/image/*.png
-
 .venv
-
 models/*
 output/*

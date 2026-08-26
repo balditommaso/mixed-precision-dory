@@ -1,11 +1,6 @@
-
-
-# Libraries
 import numpy as np
-import sys
 import copy
 
-# DORY modules
 from .HW_node import HW_node
 from dory.Utils.DORY_utils import Printer
 from dory.Parsers.DORY_node import DORY_node
@@ -14,7 +9,6 @@ from typing import *
 
 
 class Parser_DORY_to_HW:
-    # Used to manage the ONNX files. By now, supported Convolutions (PW and DW), Pooling, Fully Connected and Relu.
     def __init__(
         self, 
         graph: List[DORY_node], 
@@ -43,7 +37,7 @@ class Parser_DORY_to_HW:
         HW_node.Tiler = Tiler
 
 
-    def mapping_to_HW_nodes(self):
+    def mapping_to_HW_nodes(self) -> None:
         print("\nBackend: Matching patterns from generated DORY ONNX to HW Nodes.")
         for i, node in enumerate(self.DORY_Graph):
             string_matching, indexes = self.pattern_matching(node, i)
@@ -53,68 +47,77 @@ class Parser_DORY_to_HW:
                 ).execute(string_matching, indexes)
 
 
-    def check_graph(self):
+    def check_graph(self) -> None:
         for node in self.DORY_Graph:
             if node.name not in self.supported_nodes:
-                sys.exit("\nDORY Backend Check. Node {} is not accepted inside the HW Frontend IR.\n".format(node.name))
+                raise ValueError(
+                    "\nDORY Backend Check. Node {} is not accepted inside the HW Frontend IR.\n".format(node.name)
+                )
+        
         print("\nDORY checking of the graph: OK\n")
 
 
-    def check_parameters(self):
+    def check_parameters(self) -> None:
         print("\nTo be implemented in the target backend")
 
 
-    def pattern_matching(self, input_node, input_index):
+    def pattern_matching(self, input_node: DORY_node, input_index: int) -> Tuple[Union[str, bool], List[int]]:
         number_of_nodes = 0
         rule_found = False
         DORY_node_indexes_to_export = []
         for key, rule in self.rules.items():
-            DORY_node_indexes = []
-            DORY_node_indexes.append(input_index)
+            DORY_node_indexes = [input_index]
             if rule["number_of_nodes"] == 1 and input_node.name in rule["nodes_name"]:
                 if number_of_nodes < rule["number_of_nodes"]:
                     rule_found = key
                     number_of_nodes = rule["number_of_nodes"]
                     DORY_node_indexes_to_export = DORY_node_indexes
+            
             elif input_node.name in rule["nodes_name"]:
                 node = input_node
                 match = 1
                 nodes = copy.deepcopy(rule["nodes_name"])
                 index = nodes.index(node.name)
                 nodes[index] = "Match"
+                
                 while match == 1:
                     match = 0
                     inputs = rule["dependencies"][str(index)]["inputs"]
                     outputs = rule["dependencies"][str(index)]["outputs"]
+                    
                     for nodes_index in inputs:
                         int_index = node.input_indexes
                         node_to_search = nodes[int(nodes_index)]
-                        for i,node_i in enumerate(self.DORY_Graph):
+                        
+                        for i, node_i in enumerate(self.DORY_Graph):
                             if node_i.output_index in int_index and node_i.name == node_to_search:
                                 nodes[int(nodes_index)] = "Match"
                                 match = 1
                                 DORY_node_indexes.append(i)
+                                
                     for nodes_index in outputs:
                         out_index = node.output_index
                         node_to_search = nodes[int(nodes_index)]
-                        for i,node_i in enumerate(self.DORY_Graph):
+                        
+                        for i, node_i in enumerate(self.DORY_Graph):
                             if out_index in node_i.input_indexes and node_i.name == node_to_search:
                                 nodes[int(nodes_index)] = "Match"
                                 match = 1
                                 DORY_node_indexes.append(i)
                                 node = node_i
                                 index = int(nodes_index)
+                
                 if sum(x=="Match" for x in nodes) == len(nodes):
                     if number_of_nodes < rule["number_of_nodes"]:
                         rule_found = key
                         number_of_nodes = rule["number_of_nodes"]
                         DORY_node_indexes_to_export = DORY_node_indexes
+        
         return rule_found, DORY_node_indexes_to_export
 
 
-    def update_branches_graph(self):
+    def update_branches_graph(self) -> None:
         print("\nDORY generic Frontend. Updating branches pointers.")
-        
         graph = self.DORY_Graph
         
         for node in graph:
@@ -124,7 +127,6 @@ class Parser_DORY_to_HW:
             )
             
             num_consumers = 0
-            
             for consumer in graph:
                 if node.output_index in consumer.input_indexes:
                     num_consumers += 1
@@ -142,20 +144,16 @@ class Parser_DORY_to_HW:
         }
         
         for merge_node in graph:
-
             if merge_node.branch_in != 1:
                 continue
 
             input_producers = []
-
             for input_index in merge_node.input_indexes:
                 if input_index not in producers:
                     continue
 
                 producer_index, producer_node = producers[input_index]
-                input_producers.append(
-                    (producer_index, producer_node)
-                )
+                input_producers.append((producer_index, producer_node))
 
             if len(input_producers) != 2:
                 continue
@@ -165,55 +163,52 @@ class Parser_DORY_to_HW:
             _, early_producer = input_producers[0]
             _, late_producer = input_producers[1]
 
-            if (
-                early_producer.branch_out != 1
-                and late_producer.branch_out != 1
-            ):
-                early_producer.add_existing_parameter(
-                    "branch_change", 1
-                )
-                late_producer.add_existing_parameter(
-                    "branch_last", 1
-                )
+            if early_producer.branch_out != 1 and late_producer.branch_out != 1:
+                early_producer.add_existing_parameter("branch_change", 1)
+                late_producer.add_existing_parameter("branch_last", 1)
             else:
-                early_producer.add_existing_parameter(
-                    "branch_last", 1
-                )
+                early_producer.add_existing_parameter("branch_last", 1)
 
 
-    def update_dimensions_graph(self):
+    def update_dimensions_graph(self) -> None:
         print("\nUpdating dimensions of vectors inside the graph, if they do not match among nodes")
-        for i, node in enumerate(self.DORY_Graph):
-            if i > 0:
-                if isinstance(self.DORY_Graph[i].input_channels, type(None)):
-                    if "FullyConnected" in self.DORY_Graph[i].name:
-                        self.DORY_Graph[i].input_channels = int(
-                            self.DORY_Graph[i-1].output_channels * \
-                            np.prod(self.DORY_Graph[i-1].output_dimensions)
-                        )
-                    else:
-                        self.DORY_Graph[i].input_channels = self.DORY_Graph[i-1].output_channels
-                if len(self.DORY_Graph[i].input_dimensions) == 0:
-                    self.DORY_Graph[i].input_dimensions = self.DORY_Graph[i-1].output_dimensions
+        for i, _ in enumerate(self.DORY_Graph[1:], 1):          
+            if isinstance(self.DORY_Graph[i].input_channels, type(None)):
+                if "FullyConnected" in self.DORY_Graph[i].name:
+                    self.DORY_Graph[i].input_channels = int(
+                        self.DORY_Graph[i-1].output_channels * \
+                        np.prod(self.DORY_Graph[i-1].output_dimensions)
+                    )
+                else:
+                    self.DORY_Graph[i].input_channels = self.DORY_Graph[i-1].output_channels
+                    
+            if len(self.DORY_Graph[i].input_dimensions) == 0:
+                self.DORY_Graph[i].input_dimensions = self.DORY_Graph[i-1].output_dimensions
 
 
-    def add_tensors_memory_occupation_and_MACs(self):
+    def add_tensors_memory_occupation_and_MACs(self) -> None:
         print("\nUpdating memory occupation and MACs of tensors in layers")
-        for i, node in enumerate(self.DORY_Graph):
-            if "Convolution" in node.name or "FullyConnected" in node.name or "Add" in node.op_type or "Pooling" in node.name:
+        for node in self.DORY_Graph:
+            if (
+                "Convolution" in node.name
+                or "FullyConnected" in node.name
+                or "Add" in node.op_type
+                or "Pooling" in node.name
+            ): 
                 node.add_memory_and_MACs()
 
 
-    def adjust_data_layout(self):
+    def adjust_data_layout(self) -> None:
         print("\nTo be implemented in the target backend")
 
 
-    # Override if you want to instanciate a different type of HW_node
-    def transform_nodes_to_hw_nodes(self):
-        self.DORY_Graph = [HW_node(node, self.HW_description) for node in self.DORY_Graph]
+    def transform_nodes_to_hw_nodes(self) -> None:
+        self.DORY_Graph = [
+            HW_node(node, self.HW_description) for node in self.DORY_Graph
+        ]
 
 
-    def tiling(self):
+    def tiling(self) -> None:
         print("\nInsert tiling parameters per layer inside graph nodes")
 
         producer_map = {
@@ -244,13 +239,13 @@ class Parser_DORY_to_HW:
             )
         
 
-    def renaming_weights(self):
+    def renaming_weights(self) -> None:
         print("\nDORY Backend: Renaming Weights tensors.")
         for i, node in enumerate(self.DORY_Graph):            
             node.rename_weights()           
             
             
-    def reorder_graph_branch_contiguous(self):
+    def reorder_graph_branch_contiguous(self) -> None:
         """
         Reorder self.DORY_Graph in a valid topological execution order such
         that, at a fork, one branch is completed before starting the sibling.
@@ -354,12 +349,8 @@ class Parser_DORY_to_HW:
         self.DORY_Graph = [graph[i] for i in order]
 
 
-    def formatting_constant_parameters_tensors_and_activations(self):
+    def formatting_constant_parameters_tensors_and_activations(self) -> None:
         print("\nDORY Backend: Formatting constants and adding checksums")
-        # for i, node in enumerate(self.DORY_Graph):            
-        #     node.add_checksum_w_integer()           
-        #     if self.verify_checksum and self.network_directory is not None:
-        #         node.add_checksum_activations_integer(self.network_directory, i, self.n_inputs)
 
 
     def full_graph_parsing(self):

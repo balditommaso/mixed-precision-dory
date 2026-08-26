@@ -1,44 +1,24 @@
 {
   "name": "dory_dev",
-
-  // Build from the Dockerfile directly instead of a pre-tagged image.
-  // "Dev Containers: Rebuild Container" will now pick up changes to
-  // requirements.txt automatically — and thanks to the layer split in the
-  // Dockerfile, only the pip layer reruns, not the whole toolchain build.
   "build": {
     "dockerfile": "Dockerfile",
     "context": "."
   },
-  // If you'd rather keep using a pre-built/tagged image (e.g. built once in
-  // CI), comment out "build" above and use this instead:
-  // "image": "dory-docker:3.9",
-
   "runArgs": [
     // "--gpus", "all",
-    "--cpus=10"
+    "--cpus=10",
+    "--add-host=host.docker.internal:host-gateway"
   ],
 
   "remoteEnv": {
       "PATH": "/dory_env/bin:${containerEnv:PATH}"
   },
-
-
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/ALADIN,type=bind",
   "workspaceFolder": "/workspaces/ALADIN/",
   "updateRemoteUserUID": false,
   "remoteUser": "dory",
-
-  // Runs once, right after the container is created (including on rebuild).
-  // Installs anything listed in requirements-dev.txt, which lives in your
-  // bind-mounted repo — so it survives rebuilds without needing to touch
-  // the main requirements.txt or the Dockerfile at all.
   "postCreateCommand": "bash .devcontainer/post-create.sh",
-
-  // Runs every time the container starts (including reopening an existing
-  // container) — cheap re-sync in case requirements-dev.txt changed since
-  // the container was created.
   "postStartCommand": "bash .devcontainer/post-start.sh",
-
   "customizations": {
     "vscode": {
       "extensions": [
