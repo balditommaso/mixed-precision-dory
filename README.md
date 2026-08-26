@@ -1,10 +1,14 @@
-Mixed-precision QNN co-design tool for MCU
+ALADIN: Accuracy–Latency–Aware Design-space Inference Analysis \\ for Embedded AI Accelerators
 ===================================
-This is a HW-SW co-design tool build on top of DORY project.
-The tool guides the user from the design of the quantized neural networks up to the deployment
-on the target device. 
+ALADIN is a HW--SW co-design evaluation tool built on top of the DORY deployment
+framework. The tool guides the design-space exploration of quantized neural
+networks, from the selection of quantization and implementation strategies
+to their evaluation on the target platform.
 
-*NOTE*: The code is currently anonymized because the related paper is under review. Part of the code refers to the SoA Dory project, which we are not part of, and hence it could not be anonymized.
+**Note:** The artifact is anonymized because the associated paper is
+currently under review. Parts of the codebase are derived from the
+open-source DORY project and therefore retain the corresponding project
+structure and references.
 
 Installation
 ------------
@@ -25,8 +29,13 @@ source docker_util/docker_pulp_sdk.sh
 
 Experimets
 ---------
+The main implementation of ALADIN is located in: `./dory/Frontend_frameworks/QONNX`.
 
-You can run the experiments from the Jupyter notebook in `./notebooks/aladin.ipynb`.
+The experiments presented in the paper can be reproduced using the Jupyter
+notebook: `./notebooks/aladin.ipynb`.
+
+The notebook contains the configuration and execution of the experiments
+used to evaluate the proposed work.
 
 
 ### Reference
