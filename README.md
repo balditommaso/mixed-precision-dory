@@ -1,4 +1,4 @@
-ALADIN: Accuracy–Latency–Aware Design-space Inference Analysis \\ for Embedded AI Accelerators
+ALADIN: Accuracy–Latency–Aware Design-space Inference Analysis for Embedded AI Accelerators
 ===================================
 ALADIN is a HW--SW co-design evaluation tool built on top of the DORY deployment
 framework. The tool guides the design-space exploration of quantized neural
