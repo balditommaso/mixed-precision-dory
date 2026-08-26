@@ -17,3 +17,4 @@ HW_description.json
 .venv
 models/*
 output/*
+tests/*
